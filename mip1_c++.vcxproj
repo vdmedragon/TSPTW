@@ -103,6 +103,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="mip1_c++.cpp" />
+    <ClCompile Include="TSPTW.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TSPTW.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
