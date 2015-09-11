@@ -425,12 +425,21 @@ namespace
 
 		assert(t + G.tau[i][j] <= G.l[j]);
 
-		REFINE(j, t + G.tau[i][j], G, PTEG, addedNodeList, addedVarList, deletedVarList); //add a new node named (j, t + G.tau[i][j]) to the partially network
+		REFINE(j, max(t + G.tau[i][j], G.e[i]), G, PTEG, addedNodeList, addedVarList, deletedVarList); //add a new node named (j, t + G.tau[i][j]) to the partially network
 		cout << "Finish added new arcs!Done!" << endl;
-		RESTORE(j, t + G.tau[i][j], G, PTEG, addedVarList, deletedVarList); //restore the longest-feasible-arc property
+		RESTORE(j, max(t + G.tau[i][j],G.e[i]), G, PTEG, addedVarList, deletedVarList); //restore the longest-feasible-arc property
 		cout << "Finish lengthen an old arc!Done!" << endl;
 	}
 
+	void ADD_ARC(int i, int t, int j, int t_prime, OriginalGraph &G, PartialTimeExpandedGraph &PTEG, vector<NODE> &addNodeList, vector<VarIndex> &addedVarList, vector<VarIndex> &deletedVarList)
+	{
+		
+		PTEG.NT[j].insert(t_prime); //new time point
+
+		addedVarList.push_back(VarIndex(i, t, j, t_prime));
+
+
+	}
 	/**********************************************************Initial model generation function******************************************************************/
 
 	bool InitialModelGeneration(OriginalGraph &G, PartialTimeExpandedGraph &PTEG)
@@ -723,7 +732,7 @@ namespace
 			if (curTime + G.tau[i][j] > G.l[j]) //violation of time windows at node j
 			{
 				//lengthen it? it is not true ...
-				cout << "Arrive too late at terminal " << j << endl;
+				cout << "Arrive too late at terminal " << j << "indexed "<< idx<<endl;
 				violatedTerminal = idx;
 				return false;
 
