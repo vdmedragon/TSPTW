@@ -27,6 +27,7 @@ void addSubTourEliminationConstraints1(vector<vector<NODE>> &cycles)
 {
 	try{
 
+		cout << "Adding new subtour constraint " << cycles.size() << endl;
 		for (int k = 0; k < cycles.size(); k++)
 		{
 
@@ -75,13 +76,14 @@ void addSubTourEliminationConstraints1(vector<vector<NODE>> &cycles)
 void addSubTourEliminationConstraintsNoFirstCycle(vector<vector<NODE>> &cycles)
 {
 	try{
+		cout << "Adding new sub tour constraints :" << cycles.size() - 1 << endl;
 
 		for (int k = 1; k < cycles.size(); k++)
 		{
 
 			if (cycles[k][0].first == cycles[k][cycles[k].size() - 1].first && cycles[k][0].second == cycles[k][cycles[k].size() - 1].second)
 			{
-				cout << "Adding subtour constraint " << k << endl;
+				//cout << "Adding subtour constraint " << k + 1 << endl;
 				GRBLinExpr subTour = 0;
 				bool noSubTour = false;
 				for (int idx = 1; idx < cycles[k].size(); idx++)
@@ -96,7 +98,7 @@ void addSubTourEliminationConstraintsNoFirstCycle(vector<vector<NODE>> &cycles)
 
 				if (noSubTour == false)
 				{
-					cout << "Is adding a new subtour constraint" << k << endl;
+					//cout << "Is adding a new subtour constraint" << k << endl;
 
 					ostringstream subTourCons;
 					subTourCons << "SubTour_" << cycles[k][0].first << "." << cycles[k][0].second;
@@ -321,18 +323,25 @@ void Test2()
 			if (cycles.size()>1) //we have more than we sub-tours
 			{
 
-				addSubTourEliminationConstraints1(cycles); //remove them
+				//addSubTourEliminationConstraints1(cycles); //remove them
 
-				//int firstNonLiftedNodeIndex = firstNonLiftedNode(cycles[0]);
-				//
-				//if (firstNonLiftedNodeIndex != -1)
-				//{
-				//	UpdateArcsFollowingCycle(cycles[0], firstNonLiftedNodeIndex);
-				//	addSubTourEliminationConstraintsNoFirstCycle(cycles); //remove them
-				//}
-				//	
-				//else
-				//	addSubTourEliminationConstraints1(cycles);
+				int firstNonLiftedNodeIndex = firstNonLiftedNode(cycles[0]);
+				
+				if (firstNonLiftedNodeIndex != -1)
+				{
+					UpdateArcsFollowingCycle(cycles[0], firstNonLiftedNodeIndex);
+					addSubTourEliminationConstraintsNoFirstCycle(cycles); //remove them
+				}
+					
+				else
+				{
+					int nbArcs = UpdateArcsFollowingCycle(cycles[0], cycles[0].size()-2);
+					if (nbArcs) 
+						addSubTourEliminationConstraintsNoFirstCycle(cycles);
+					else
+						 addSubTourEliminationConstraints1(cycles);
+				}
+					//addSubTourEliminationConstraints1(cycles);
 				
 				
 				
@@ -450,12 +459,13 @@ int main(int   argc,
 	testReadingGraph(G);
 
 	CreateInitialParitalGraph(G, PTEG);
+	//CreateInitialParitalGraphWithOutZero(G, PTEG);
 
 	InitialModelGeneration(G, PTEG);
 
-	 
+	
 
-	//model.write("tsp_ori.lp");
+	model.write("tsp_ori.lp");
 
 	model.getEnv().set(GRB_IntParam_OutputFlag, 0);
 	

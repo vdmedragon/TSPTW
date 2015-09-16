@@ -281,6 +281,66 @@ namespace
 			}
 	}
 
+	void CreateInitialParitalGraphWithOutZero(OriginalGraph &G, //original graph
+		PartialTimeExpandedGraph &PTEG //initial partially time-expanded graph
+		)
+	{
+		//list of nodes in the partial graph
+		for (int i = 0; i < G.N0; i++)
+		{
+			PTEG.NT[i].insert(0);
+			PTEG.NT[i].insert(G.e[i]);
+			PTEG.NT[i].insert(G.l[i]);
+		}
+
+		//adding arcs, 
+		for (int i = 0; i < G.N0; i++) //all terminals
+			for (S_IT t_it = PTEG.NT[i].begin(); t_it != PTEG.NT[i].end(); t_it++) //all time points associated with each terminal
+
+			{
+				int t = *t_it;
+				NODE source = make_pair(i, t); //current vertex s
+				
+				
+				if (t!=0 || (t==G.e[0] && i==0))
+				//add crossing arcs
+				for (int j = 0; j < G.N0; j++)
+				{
+
+					if (i == j) continue;
+
+
+					//find largest t' such that (j,t') in N_T and t' - t \leq \tau_{ij} - nghia la co canh noi duoc 2 dinh nay
+					int tau_ij = G.tau[i][j];
+
+					if (t + tau_ij > G.l[j]) continue; //do not consider this arc because it violates time window constraint
+
+					S_IT loc = PTEG.NT[j].upper_bound(t + tau_ij);
+					loc--;
+					int t_prime = *loc;
+
+					NODE dest = make_pair(j, t_prime); //next vertex
+
+
+					PTEG.AT[source].insert(dest); //add an arc from source to dest -
+
+				}
+				//add a holding arc
+
+				S_IT next = t_it; next++;
+
+				if (next != PTEG.NT[i].end())
+				{
+					int t_prime = *next;
+
+					assert(t != t_prime);
+
+					NODE dest = make_pair(i, t_prime);
+					PTEG.AT[source].insert(dest); //holding arc
+				}
+			}
+	}
+
 	//in this version, (i,t) connects to (j,t') if t'>= t+ tau_ij because we can wait at j
 	//(i,t) can connect to (j,t') if l(j) >= t+ tau(i,j)
 	void CreateInitialParitalGraph1(OriginalGraph &G, //original graph
@@ -601,7 +661,7 @@ namespace
 			addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
 
 			change = deletedVarList.size() + addedVarList.size() + addedNodeList.size() > 0;
-
+			nbModificationArcs += deletedVarList.size() + addedVarList.size() + addedNodeList.size();
 			cout << "New nodes:";
 			printAddedNodeList(addedNodeList);
 			if (addedNodeList.size() == 0) cout << "No new nodes" << endl;
@@ -783,7 +843,9 @@ namespace
 						NODE jt_node = *j_tprime_it;
 						int j = jt_node.first;
 						int tprime = jt_node.second;
-						visitedOnceExp += x_a[VarIndex(i, t, j, tprime)];
+
+						if (i!=j) //going out
+							visitedOnceExp += x_a[VarIndex(i, t, j, tprime)];
 
 					}
 				}
