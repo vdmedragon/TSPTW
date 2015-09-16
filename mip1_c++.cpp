@@ -93,30 +93,30 @@ void subTourEliminationConstraint()
 
 
 
-void modifyCurrentModel()
-{
-	//remove variables and update the model
-	for (int i = 0; i < deletedVarList.size(); i++)
-		model.remove(x_a[deletedVarList[i]]);
-
-	model.update();
-
-	//add new variables associated with new arcs and update the model
-	for (int k = 0; k < addedVarList.size(); k++)
-	{
-		int i = addedVarList[k].i;
-		int t = addedVarList[k].t;
-		int j = addedVarList[k].j;
-		int t_prime = addedVarList[k].t_prime;
-
-		//extract flow constraint related to node (i,t)
-		ostringstream flowConstraint;
-		flowConstraint << "FlowConstraint_" << i << "." << t;
-
-		GRBConstr curConstraint = model.getConstrByName(flowConstraint.str());
-		GRBLinExpr curLinExpr = model.getRow(curConstraint);
-	}
-}
+//void modifyCurrentModel()
+//{
+//	//remove variables and update the model
+//	for (int i = 0; i < deletedVarList.size(); i++)
+//		model.remove(x_a[deletedVarList[i]]);
+//
+//	model.update();
+//
+//	//add new variables associated with new arcs and update the model
+//	for (int k = 0; k < addedVarList.size(); k++)
+//	{
+//		int i = addedVarList[k].i;
+//		int t = addedVarList[k].t;
+//		int j = addedVarList[k].j;
+//		int t_prime = addedVarList[k].t_prime;
+//
+//		//extract flow constraint related to node (i,t)
+//		ostringstream flowConstraint;
+//		flowConstraint << "FlowConstraint_" << i << "." << t;
+//
+//		GRBConstr curConstraint = model.getConstrByName(flowConstraint.str());
+//		GRBLinExpr curLinExpr = model.getRow(curConstraint);
+//	}
+//}
 
 void resetModel(OriginalGraph &G, PartialTimeExpandedGraph &PTEG)
 {

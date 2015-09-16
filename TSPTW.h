@@ -15,80 +15,121 @@ using std::cout;
 
 using namespace std;
 
-#define MAXN 222
-
-struct OriginalGraph
-{
-	int N0; //number of vertices;
-	int tau[MAXN][MAXN]; //distance matrix
-	int e[MAXN], l[MAXN]; //time windows
-};
-
-#define NODE pair<int, int>
-#define S_IT set<int>::iterator 
-#define M_NODE_S_NODE_IT map<NODE, set <NODE> >::iterator
-
-struct PartialTimeExpandedGraph{
-	int N0;
-	set<int> NT[MAXN]; //for each terminal i, we associate with i set of time t that node i_t is in the set of N_T
-	map<NODE, set <NODE> > AT; //we associate with each node (i,t) in N_T, a set of nodes (j,t') associated with it; that means; the arc (i,t) - (j,t') is in A_T
-};
-
-struct VarIndex{
-	int i, t, j, t_prime;
-
-	VarIndex(int ii, int tt, int jj, int tt_prime)
-	{
-		i = ii;
-		j = jj;
-		t = tt;
-		t_prime = tt_prime;
-	}
-
-	VarIndex()
-	{
-		i = j = t = t_prime = -1;
-	}
-
-	friend bool operator < (const VarIndex &idx1, const VarIndex &idx2)
-	{
-		if (idx1.i < idx2.i)
-			return true;
-		else if (idx1.i == idx2.i)
-			if (idx1.t < idx2.t)
-				return true;
-			else if (idx1.t == idx2.t)
-				if (idx1.j < idx2.j)
-					return true;
-				else if (idx1.j == idx2.j)
-					if (idx1.t_prime < idx2.t_prime)
-						return true;
-		return false;
-	}
-};
-/**********************************************************Comparison functions******************************************************************/
-inline bool varIndexCmp(const VarIndex &a, const VarIndex &b)
-{
-	return (a.i < b.i || (a.i == b.i && a.t < b.t));
-}
-
-inline bool orderedbyTime(const VarIndex &a, const VarIndex &b)
-{
-	return (a.t < b.t || (a.t == b.t && a.i<b.i));
-}
-
-inline bool orderedbyTimeNode(const NODE &a, const NODE &b)
-{
-	return (a.second < b.second);
-}
-
-/**********************************************************Global variable information section******************************************************************/
+#define MAXN 202
 
 namespace
 {
+
+	struct OriginalGraph
+	{
+		int N0; //number of vertices;
+		int tau[MAXN][MAXN]; //distance matrix
+		int e[MAXN], l[MAXN]; //time windows
+	};
+
+	#define NODE pair<int, int>
+	#define S_IT set<int>::iterator 
+	#define M_NODE_S_NODE_IT map<NODE, set <NODE> >::iterator
+
+	struct PartialTimeExpandedGraph{
+		int N0;
+		set<int> NT[MAXN]; //for each terminal i, we associate with i set of time t that node i_t is in the set of N_T
+		map<NODE, set <NODE> > AT; //we associate with each node (i,t) in N_T, a set of nodes (j,t') associated with it; that means; the arc (i,t) - (j,t') is in A_T
+	};
+
 	//graph information
 	OriginalGraph G;
 	PartialTimeExpandedGraph PTEG;
+
+	struct VarIndex{
+		int i, t, j, t_prime;
+
+		VarIndex(int ii, int tt, int jj, int tt_prime)
+		{
+			i = ii;
+			j = jj;
+			t = tt;
+			t_prime = tt_prime;
+		}
+
+		VarIndex()
+		{
+			i = j = t = t_prime = -1;
+		}
+
+		friend bool operator < (const VarIndex &idx1, const VarIndex &idx2)
+		{
+			if (idx1.i < idx2.i)
+				return true;
+			else if (idx1.i == idx2.i)
+				if (idx1.t < idx2.t)
+					return true;
+				else if (idx1.t == idx2.t)
+					if (idx1.j < idx2.j)
+						return true;
+					else if (idx1.j == idx2.j)
+						if (idx1.t_prime < idx2.t_prime)
+							return true;
+			return false;
+		}
+
+		friend ostream& operator << (ostream &out, VarIndex arc)
+		{
+			out << "(" << arc.i << ',' << arc.t << ")-(" << arc.j << "," << arc.t_prime << ")";
+			return out;
+		}
+	};
+	/**********************************************************Display function******************************************************************/
+	void printAddedNodeList(set<NODE> &addedNodeList)
+	{
+		for (set<NODE>::iterator it = addedNodeList.begin(); it != addedNodeList.end(); it++)
+			cout << "(" << (*it).first << "," << (*it).second << ")," << endl;
+	}
+
+	void printAddedArcsList(set<VarIndex> &addedArcsList)
+	{
+		for (set<VarIndex>::iterator it = addedArcsList.begin(); it != addedArcsList.end(); it++)
+			cout << "(" << it->i << "," << it->t << ")-(" << it->j << "," << it->t_prime << ")," << endl;
+	}
+	
+	void printRemovedArcsList(set<VarIndex> &removedArcsList)
+	{
+		for (set<VarIndex>::iterator it = removedArcsList.begin(); it != removedArcsList.end(); it++)
+			cout << "(" << it->i << "," << it->t << ")-(" << it->j << "," << it->t_prime << ")," << endl;
+	}
+	/**********************************************************Comparison functions******************************************************************/
+	inline bool varIndexCmp(const VarIndex &a, const VarIndex &b)
+	{
+		return (a.i < b.i || (a.i == b.i && a.t < b.t));
+	}
+
+	inline bool orderedbyTime(const VarIndex &a, const VarIndex &b)
+	{
+		return (a.t < b.t || (a.t == b.t && a.i<b.i));
+	}
+
+	inline bool orderedbyTimeNode(const NODE &a, const NODE &b)
+	{
+		return (a.second < b.second);
+	}
+
+	inline bool isTheSameArc(const VarIndex &a, const VarIndex &b)
+	{
+		return (a.i == b.i && a.t == b.t && a.j == b.j && a.t_prime == b.t_prime);
+	}
+
+	inline bool isValidArc(const VarIndex &a)
+	{
+		return (a.t >= G.e[a.i] && a.t <= G.l[a.i] && a.t_prime >= G.e[a.j] && a.t_prime <= G.l[a.j]);
+	}
+
+	inline bool tooLate(const VarIndex &a)
+	{
+		return (a.t_prime > G.l[a.j]);
+	}
+
+	void addNodeArcToModel(OriginalGraph &G, PartialTimeExpandedGraph &PTEG, set<VarIndex> &deletedVarList, set<VarIndex> &addedVarList, set<NODE> &addedNodeList);
+	/**********************************************************Global variable information section******************************************************************/
 
 	//model and variable decleration 
 	GRBEnv *env = new GRBEnv();
@@ -97,9 +138,11 @@ namespace
 	map<VarIndex, GRBVar> x_a;
 	map<string, GRBLinExpr> constraintSet;
 
-	vector<VarIndex> deletedVarList;
-	vector<VarIndex> addedVarList;
-	vector<NODE> addedNodeList;
+	set<VarIndex> deletedVarList;
+	set<VarIndex> addedVarList;
+	set<NODE> addedNodeList;
+
+	 
 
 	bool subTourElimination = false;
 
@@ -188,7 +231,7 @@ namespace
 		//list of nodes in the partial graph
 		for (int i = 0; i < G.N0; i++)
 		{
-			PTEG.NT[i].insert(0);
+		 	PTEG.NT[i].insert(0);
 			PTEG.NT[i].insert(G.e[i]);
 			PTEG.NT[i].insert(G.l[i]);
 		}
@@ -202,19 +245,21 @@ namespace
 
 				//add crossing arcs
 				for (int j = 0; j < G.N0; j++)
-					if (i != j) //different terminal
 					{
+						if (i == j) continue;
 
+						
 						//find largest t' such that (j,t') in N_T and t' - t \leq \tau_{ij} - nghia la co canh noi duoc 2 dinh nay
 						int tau_ij = G.tau[i][j];
 
-						//if (t + tau_ij > G.l[j]) continue; //do not consider this arc because it violates time window constraint
+						if (t + tau_ij > G.l[j]) continue; //do not consider this arc because it violates time window constraint
 
 						S_IT loc = PTEG.NT[j].upper_bound(t + tau_ij);
 						loc--;
 						int t_prime = *loc;
 
 						NODE dest = make_pair(j, t_prime); //next vertex
+						
 
 						PTEG.AT[source].insert(dest); //add an arc from source to dest -
 
@@ -230,7 +275,7 @@ namespace
 					assert(t != t_prime);
 
 					NODE dest = make_pair(i, t_prime);
-					PTEG.AT[source].insert(dest);
+					PTEG.AT[source].insert(dest); //holding arc
 				}
 			}
 	}
@@ -297,14 +342,21 @@ namespace
 	//addedVarList will contain list of being added arcs/variables related to new added nodes during the refine function
 	//deletedVarList will contain list of being removed arcs/variables related to new added/nodes during the refine function
 
-	void REFINE(int i, int t_new, OriginalGraph &G, PartialTimeExpandedGraph &PTEG, vector<NODE> &addedNodeList, vector<VarIndex> &addedVarList, vector<VarIndex> &deletedVarList)
+	bool REFINE(int i, int t_new, OriginalGraph &G, PartialTimeExpandedGraph &PTEG, set<NODE> &addedNodeList, set<VarIndex> &addedVarList, set<VarIndex> &deletedVarList)
 	{
 		//add new node
+		cout << "Trying to add new node" << "(" << i << "," << t_new << ")" << endl;
 		std::pair<std::set<int>::iterator, bool> loc = PTEG.NT[i].insert(t_new); //location of new added node
-		if (loc.second == false) return;
+ 
 
-		//assert(loc.second == true);//fail nghia la dinh nay da duoc them vao
-		addedNodeList.push_back(NODE(i, t_new));
+		if (loc.second == false)
+		{
+			cout << "This node is already in the model!" << endl;
+			
+			return false;
+		}
+
+ 		addedNodeList.insert(NODE(i, t_new));
 
 		//prev and succ node
 		S_IT cur = loc.first;
@@ -317,13 +369,15 @@ namespace
 		int t_k = *prev;
 		int t_k_plus_one = *next;
 
+		assert(t_k < t_new && t_new < t_k_plus_one);
+
 		//remove the holding arc (i,t_k) - (i,t_k_plus_one) - step 2
 		NODE prev_node = make_pair(i, t_k);
 		NODE succ_node = make_pair(i, t_k_plus_one);
 
 		PTEG.AT[prev_node].erase(succ_node);
 
-		deletedVarList.push_back(VarIndex(i, t_k, i, t_k_plus_one)); //remove the corresponding variable from the model
+		deletedVarList.insert(VarIndex(i, t_k, i, t_k_plus_one)); //remove the corresponding variable from the model
 
 		//new node associated to new time point - step 2
 		NODE new_node = make_pair(i, t_new);
@@ -331,8 +385,12 @@ namespace
 		//adding two new holding arcs
 		PTEG.AT[prev_node].insert(new_node);
 		PTEG.AT[new_node].insert(succ_node);
-		addedVarList.push_back(VarIndex(i, t_k, i, t_new)); //will be adding these two new variables associated with these two holding arcs
-		addedVarList.push_back(VarIndex(i, t_new, i, t_k_plus_one));
+		
+		assert(t_new != t_k && t_new != t_k_plus_one);
+		if (t_new != t_k)
+			addedVarList.insert(VarIndex(i, t_k, i, t_new)); //will be adding these two new variables associated with these two holding arcs
+		if (t_new != t_k_plus_one)
+			addedVarList.insert(VarIndex(i, t_new, i, t_k_plus_one));
 
 		//adding new crossing arcs from new added node - step 3
 
@@ -343,9 +401,18 @@ namespace
 
 			int j = jt_node.first;
 			int t = jt_node.second;
+			
+			if (i == j) 
+				continue; //holding arc
 
-			addedVarList.push_back(VarIndex(i, t_new, j, t)); //will be adding new variables associated with these crossing arcs
+			//add more condition here
+			if (t_new + G.tau[i][j] > G.l[j]) 
+				continue;
+
+			addedVarList.insert(VarIndex(i, t_new, j, t)); //will be adding new variables associated with these crossing arcs
 		}
+
+		return true;
 	}
 
 
@@ -354,7 +421,7 @@ namespace
 	//addedVarList will contain list of being added arcs/variables related to new added nodes during the restoration function
 	//deletedVarList will contain list of being removed arcs/variables related to new added/nodes during the restoration function
 
-	void RESTORE(int i, int t_new, OriginalGraph &G, PartialTimeExpandedGraph &PTEG, vector<VarIndex> &addedVarList, vector<VarIndex> &deletedVarList)
+	void RESTORE(int i, int t_new, OriginalGraph &G, PartialTimeExpandedGraph &PTEG, set<VarIndex> &addedVarList, set<VarIndex> &deletedVarList)
 	{
 
 		S_IT loc = PTEG.NT[i].find(t_new); //located the location of new added time point related to terminal i
@@ -376,6 +443,9 @@ namespace
 			int j = jt_node.first; //dest - terminal
 			int t = jt_node.second; //dest - time period
 
+			if (i == j) //holding arc, not lengthen 
+				continue;
+
 			S_IT succ_tprime_it = PTEG.NT[j].upper_bound(t_new + G.tau[i][j]); //line 2, find successor of t'
 			S_IT t_prime_it = --succ_tprime_it; //t' now
 
@@ -385,13 +455,16 @@ namespace
 			{
 				PTEG.AT[new_node].erase(jt_node); //erase old arc related to new_node line 4
 
-				deletedVarList.push_back(VarIndex(i, t_new, j, t)); //will remove associated variable from the model
+				addedVarList.erase(VarIndex(i, t_new, j, t)); //will remove associated variable from the model - do not add this arc to the model
+
+				//deletedVarList.insert(VarIndex(i, t_new, j, t)); //will remove associated variable from the model
 
 				NODE jtprime_node = make_pair(j, t_prime);
 
 				PTEG.AT[new_node].insert(jtprime_node); //arc new arc related to new_node to enforce longest_feasiblity_path property
 
-				addedVarList.push_back(VarIndex(i, t_new, j, t_prime)); //will add associated variable to the model
+				
+				addedVarList.insert(VarIndex(i, t_new, j, t_prime)); //will add associated variable to the model
 			}
 		}
 
@@ -403,16 +476,21 @@ namespace
 			int t = jt_node.second;
 			int j = jt_node.first;
 
+			if (i == j)
+				continue;
+
 			if (t + G.tau[j][i] >= t_new) //line 7 condition; the distance between two terminals is not so long
 				if (s_jt.find(prev_node) != s_jt.end()) //if there is an arc from jt-node to the prev node; replace with the new arc to enforce longest_ feasible_path
 				{
 					PTEG.AT[jt_node].erase(prev_node);
 
-					deletedVarList.push_back(VarIndex(j, t, i, t_k)); //will remove the variable associated with this arc from the model
+					deletedVarList.insert(VarIndex(j, t, i, t_k)); //will remove the variable associated with this arc from the model
 
 					PTEG.AT[jt_node].insert(new_node);
 
-					addedVarList.push_back(VarIndex(j, t, i, t_new)); //will add the variable associated with this arc to the model
+					 
+					addedVarList.insert(VarIndex(j, t, i, t_new)); //will add the variable associated with this arc to the model
+					 
 				}
 		}
 	}
@@ -431,14 +509,116 @@ namespace
 		cout << "Finish lengthen an old arc!Done!" << endl;
 	}
 
-	void ADD_ARC(int i, int t, int j, int t_prime, OriginalGraph &G, PartialTimeExpandedGraph &PTEG, vector<NODE> &addNodeList, vector<VarIndex> &addedVarList, vector<VarIndex> &deletedVarList)
+	bool ARC_MODIFICATION(VarIndex old_arc, VarIndex new_arc)
 	{
 		
-		PTEG.NT[j].insert(t_prime); //new time point
+		if (x_a.find(new_arc) != x_a.end())
+		{
+			cout << "The arc "<< new_arc << " is already in the model" << endl;
+			return false;
+		}
+		
+		//addedVarList.insert(new_arc);
+		//deletedVarList.insert(old_arc);
 
-		addedVarList.push_back(VarIndex(i, t, j, t_prime));
+		bool added_arc = REFINE(new_arc.j, new_arc.t_prime, G,PTEG, addedNodeList, addedVarList, deletedVarList);
 
+		if (added_arc == true)
+			RESTORE(new_arc.j, new_arc.t_prime, G, PTEG, addedVarList, deletedVarList);  
+		
+		return true; 
+	}
 
+	//update each node to its correct location if we move along this cycle
+	//remove violated arcs if this cycle has
+	int UpdateArcsFollowingCycle(vector<NODE> &cycle, int violatedTerminal)
+	{
+		int curTime = G.e[cycle[0].first]; //la thoi diem bat dau cua diem thap nhat
+		int prevTime = -1;
+		int nbModificationArcs = 0;
+		bool change = false;
+
+		for (int idx = 1; idx <= violatedTerminal; idx++)
+		{
+			
+			if (change) //perform only 1 change
+				break; 
+
+			NODE prev = cycle[idx - 1];
+			NODE cur = cycle[idx];
+
+			int i = prev.first, t = prev.second;
+			int j = cur.first, t_prime = cur.second;
+
+			prevTime = curTime;
+			curTime = max(curTime + G.tau[i][j], G.e[j]);
+
+			VarIndex old_arc(i, t, j, t_prime); //old arc in the list
+			
+			 
+			VarIndex new_arc(i, prevTime, j, curTime); //new arc
+			cout << "************************************" << endl;
+			cout << "Is trying to remove old arc" << old_arc << endl;
+			cout << "Is trying to add new arc" << new_arc << endl;
+			
+			if (isTheSameArc(old_arc, new_arc))
+			{
+				cout << "They are same arc! Already lengthened so cannnot remove!" << endl;
+				continue; //this arc is already lengthened. 
+			}
+			addedNodeList.clear();
+			addedVarList.clear();
+			deletedVarList.clear();
+
+			if (!tooLate(new_arc) && t != prevTime) //nghia la old_arc va new_arc xuat phat tu hai diem khac nhau, giu old arc
+			{
+				cout << "Keep old arcs while adding new arcs because they depart at different time!" << endl;
+				//continue; 
+			}
+			else if (!tooLate(new_arc))
+			{
+				cout << "Is able to remove old arc! Two arcs depart from a same time!" << endl;
+				deletedVarList.insert(old_arc); //xoa old_arc
+			}
+			
+			if (isValidArc(new_arc)) //them duoc arc moi, cac diem deu thoa man time window
+			{
+				nbModificationArcs++;
+				addedVarList.insert(new_arc);
+				ARC_MODIFICATION(old_arc, new_arc);
+			}
+			else
+			{
+				cout << "New arc is too late!Cannot added! " << endl;
+				if (t == prevTime)
+				{
+					cout << "Previous arc is lengthened! So remove old arc!"<<endl;
+					deletedVarList.insert(old_arc);
+				}
+			}
+
+			addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
+
+			//change = deletedVarList.size() + addedVarList.size() + addedNodeList.size() > 0;
+
+			cout << "New nodes:";
+			printAddedNodeList(addedNodeList);
+			if (addedNodeList.size() == 0) cout << "No new nodes" << endl;
+			else cout << endl;
+
+			cout << "New added arcs:";
+			if (addedVarList.size()) cout << endl;
+
+			printAddedArcsList(addedVarList);
+			if (addedVarList.size() == 0) cout << "No new arcs " << endl;
+
+			cout << "Old removed arcs:";
+			if (deletedVarList.size()) cout << endl;
+
+			printRemovedArcsList(deletedVarList);
+			if (deletedVarList.size() == 0) cout << "No removed arcs" << endl;
+		}
+		return nbModificationArcs;
 	}
 	/**********************************************************Initial model generation function******************************************************************/
 
@@ -634,6 +814,217 @@ namespace
 		return true;
 	}
 
+	/**********************************************************Model modification*****************************************************************************/
+
+	void addNodeArcToModel(OriginalGraph &G, PartialTimeExpandedGraph &PTEG, set<VarIndex> &deletedVarList, set<VarIndex> &addedVarList, set<NODE> &addedNodeList)
+	{
+		try{
+			cout << "Model modification!" << endl;
+			set<string> newConstraints;
+
+			
+			assert(addedNodeList.size() <= 1); //add no more than one node each time
+
+			int ii = -1, tt = -1;
+
+			if (addedNodeList.size())
+				ii = addedNodeList.begin()->first, tt = addedNodeList.begin()->second;
+
+			//cout << " AAAAAAAAAAAAA" << endl;
+			//add constraints related to the new node
+			for (set<NODE>::iterator it = addedNodeList.begin(); it != addedNodeList.end();it++)
+			 
+			{
+				 
+				int i = it->first;
+				int t = it->second;
+
+				if (i == 0 && t == G.e[0])
+					continue;
+
+				ostringstream flowConstraint;
+				flowConstraint << "FlowConstraint_" << i << "." << t;
+
+				model.addConstr(GRBLinExpr(0.0) == 0, flowConstraint.str());
+
+				newConstraints.insert(flowConstraint.str());
+				model.update();
+				constraintSet[flowConstraint.str()] = model.getRow( model.getConstrByName(flowConstraint.str()));
+			}
+
+			model.update();
+			//cout << " AAAAAAAAAAAAA" << endl;
+			//			//add constraints related to the new node
+			//for (int k = 0; k < addedNodeList.size(); k++)
+			//{
+			//	int i = addedNodeList[k].first;
+			//	int t = addedNodeList[k].second;
+
+			//	if (i == 0 && t == G.e[0])
+			//		continue;
+
+			//	ostringstream flowConstraint;
+			//	flowConstraint << "FlowConstraint_" << i << "." << t;
+
+			//	model.addConstr(GRBLinExpr(0.0) == 0, flowConstraint.str());
+
+			//	newConstraints.insert(flowConstraint.str());
+
+			//	constraintSet[flowConstraint.str()] = model.getRow( model.getConstrByName(flowConstraint.str()));
+			//}
+			//cout << " AAAAAAAAAAAAA" << endl;
+			
+			for (set<VarIndex>::iterator it = deletedVarList.begin(); it!=deletedVarList.end(); it++)
+			{
+				model.remove(x_a[*it]); //remove variables from the model
+
+				x_a.erase(*it); //remove variable from variables' list
+
+				int i = it->i;
+				int t = it->t;
+				int j = it->j;
+				int t_prime = it->t_prime;
+
+				PTEG.AT[NODE(i, t)].erase(NODE(j, t_prime)); //remove arcs from arcs' list
+			}
+
+			model.update();
+
+			//cout << " Remove old variables!Done!" << endl;
+
+			constraintSet.clear();
+
+			for (set<VarIndex>::iterator it = addedVarList.begin(); it!= addedVarList.end(); it++)
+			{
+				int i = it->i;
+				int t = it->t;
+				int j = it->j;
+				int t_prime = it->t_prime;
+
+				//if (ii == i && tt == t) cout << "Related new added nodes" << i<<"."<<t<< endl;
+
+				ostringstream var_name;
+
+				var_name << "x(" << i << "," << t << ")(" << j << "," << t_prime << ")";
+
+				GRBVar new_arc = model.addVar(0.0, 1.0, G.tau[i][j], GRB_BINARY, var_name.str()); //add the variable associated to this arc to the model
+
+				x_a[VarIndex(i, t, j, t_prime)] = new_arc;
+
+				//cout << "Adding a new arc!Done!" << endl;
+				model.update();
+
+				if (i == 0 && t == G.e[0])
+				{
+					ostringstream depotOutConstraint;
+					depotOutConstraint << "DepotOutConstraint";
+					
+					newConstraints.insert(depotOutConstraint.str());
+
+					if (constraintSet.find(depotOutConstraint.str()) == constraintSet.end())
+						constraintSet[depotOutConstraint.str()] = model.getRow(model.getConstrByName(depotOutConstraint.str()));
+					constraintSet[depotOutConstraint.str()] += new_arc;
+				}
+
+				if (i != 0 || (t != G.e[0] && t != G.l[0]))
+				{
+					//modified  constraint related to node (i,t)
+					ostringstream flowConstraint1;
+					flowConstraint1 << "FlowConstraint_" << i << "." << t;
+
+					newConstraints.insert(flowConstraint1.str());
+
+					if (constraintSet.find(flowConstraint1.str()) == constraintSet.end())
+						constraintSet[flowConstraint1.str()] = model.getRow(model.getConstrByName(flowConstraint1.str()));
+					constraintSet[flowConstraint1.str()] += new_arc;
+
+				}
+
+
+				//cout << "Change 1st flow constraint!Done!" << endl;
+				if (j != 0 || (t_prime != G.e[0] && t_prime != G.l[0]))
+				{
+					ostringstream flowConstraint2;
+					flowConstraint2 << "FlowConstraint_" << j << "." << t_prime;
+
+					newConstraints.insert(flowConstraint2.str());
+
+					if (constraintSet.find(flowConstraint2.str()) == constraintSet.end())
+						constraintSet[flowConstraint2.str()] = model.getRow(model.getConstrByName(flowConstraint2.str()));
+					constraintSet[flowConstraint2.str()] -= new_arc;
+				}
+
+
+				//cout << "Change 2nd flow constraint!Done!" << endl;
+
+				ostringstream visitedOnceConstraint;
+				visitedOnceConstraint << "visitedOnceConstraint_" << i;
+
+ 				newConstraints.insert(visitedOnceConstraint.str());
+
+				if (constraintSet.find(visitedOnceConstraint.str()) == constraintSet.end())
+					constraintSet[visitedOnceConstraint.str()] = model.getRow(model.getConstrByName(visitedOnceConstraint.str()));
+				constraintSet[visitedOnceConstraint.str()] += new_arc;
+				//cout << "Change visited once constraint!Done!" << endl;
+			}
+
+			model.update();
+
+ 
+			cout << "Number of new constraints: " << newConstraints.size() << endl;
+			//cout << "Adding new variables!Done!" << endl;
+		 
+
+			for (set<string>::iterator it = newConstraints.begin(); it != newConstraints.end(); it++)
+			{
+				string cons_name = *it;
+
+				//model.addConstr(constraintSet["xxx"] == 1, "yyy");
+
+				//cout << "Current constraints:" << cons_name << endl;
+
+				GRBConstr rem_cons = model.getConstrByName(cons_name);
+ 				model.remove(rem_cons);
+				
+				model.update();
+
+
+				if (cons_name[0] == 'D')
+				{
+					//cout << "we are here" << endl;
+					//if (constraintSet.find(cons_name) == constraintSet.end())
+					//{
+					//	cout << "Not found this constraint!" << endl;
+					//	return;
+					//}
+
+					model.addConstr(constraintSet[cons_name] == 1, cons_name);
+					//cout << "we are ok!" << endl;
+				}
+				else if (cons_name[0] == 'F')
+					model.addConstr(constraintSet[cons_name] == 0, cons_name);
+				else if (cons_name[0] == 'v')
+					model.addConstr(constraintSet[cons_name] == 1, cons_name);
+				else cout << "Something wrong!" << endl;
+
+				//cout << "Done add new constraint" << endl;
+				//model.update();
+			}
+			model.update();
+		}
+
+		catch (GRBException e) {
+			cout << "Error code in addNodeArcToModel " << e.getErrorCode() << endl;
+			cout << e.getMessage() << endl;
+			/*	return false;*/
+		}
+		catch (...) {
+			cout << "Exception during optimization" << endl;
+			/*return false;*/
+		}
+	}
+
+
 	/**********************************************************Build Cycles from Selected Arcs******************************************************************/
 	void buildCycles(vector<VarIndex> selectedArcs, vector<vector<NODE>> &cycles)
 	{
@@ -646,7 +1037,7 @@ namespace
 		for (int k = 0; k < selectedArcs.size(); k++)
 			if (mark[k] == false)
 			{
-				cout << k << endl;
+				//cout << k << endl;
 
 				mark[k] = true;
 
@@ -684,6 +1075,8 @@ namespace
 
 				//sort(curCycle.begin(), curCycle.end(), orderedbyTimeNode);
 
+				if (curCycle[0].first != curCycle[curCycle.size() - 1].first)
+					cout << "Not a cycles!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
 				cycles.push_back(curCycle);
 
 			}
@@ -732,7 +1125,7 @@ namespace
 			if (curTime + G.tau[i][j] > G.l[j]) //violation of time windows at node j
 			{
 				//lengthen it? it is not true ...
-				cout << "Arrive too late at terminal " << j << "indexed "<< idx<<endl;
+				cout << "Arrive too late at terminal " << j << " indexed "<< idx<<endl;
 				violatedTerminal = idx;
 				return false;
 
@@ -741,6 +1134,30 @@ namespace
 				curTime = max(curTime + G.tau[i][j], G.e[j]);
 		}
 		return true;
+	}
+
+	int firstNonLiftedNode(vector<NODE>  &cycle)
+	{
+
+
+		int curTime = G.e[0];
+
+		for (int idx = 1; idx + 1 < cycle.size(); idx++)
+		{
+			NODE prev = cycle[idx - 1];
+			NODE cur = cycle[idx];
+
+			int i = prev.first, t = prev.second;
+			int j = cur.first, t_prime = cur.second;
+
+			if (curTime > t_prime) //still not lifted yet
+			{
+				return idx;
+			}
+			else
+				curTime = max(curTime + G.tau[i][j], G.e[j]);
+		}
+		return -1;
 	}
 
 
@@ -782,6 +1199,7 @@ namespace
 			/*return false;*/
 		}
 	}
+
 
 }
 #endif
