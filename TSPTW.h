@@ -231,7 +231,7 @@ namespace
 		//list of nodes in the partial graph
 		for (int i = 0; i < G.N0; i++)
 		{
-		 	PTEG.NT[i].insert(0);
+		 	if (i!=0) PTEG.NT[i].insert(0);
 			PTEG.NT[i].insert(G.e[i]);
 			PTEG.NT[i].insert(G.l[i]);
 		}
@@ -239,6 +239,7 @@ namespace
 		//adding arcs, 
 		for (int i = 0; i < G.N0; i++) //all terminals
 			for (S_IT t_it = PTEG.NT[i].begin(); t_it != PTEG.NT[i].end(); t_it++) //all time points associated with each terminal
+			
 			{
 				int t = *t_it;
 				NODE source = make_pair(i, t); //current vertex s
@@ -599,7 +600,7 @@ namespace
 
 			addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
 
-			//change = deletedVarList.size() + addedVarList.size() + addedNodeList.size() > 0;
+			change = deletedVarList.size() + addedVarList.size() + addedNodeList.size() > 0;
 
 			cout << "New nodes:";
 			printAddedNodeList(addedNodeList);
@@ -1076,7 +1077,10 @@ namespace
 				//sort(curCycle.begin(), curCycle.end(), orderedbyTimeNode);
 
 				if (curCycle[0].first != curCycle[curCycle.size() - 1].first)
+				{
 					cout << "Not a cycles!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+					exit(0);
+				}
 				cycles.push_back(curCycle);
 
 			}

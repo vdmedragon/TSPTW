@@ -251,9 +251,9 @@ void Test2()
 			nbIters++;
 			cout << "Iter " << nbIters << endl;
 
-			if (nbIters == 500)
+			if (nbIters == 2000)
 			{
-				model.write("tsp500.lp");
+				model.write("tsp2000.lp");
 				exit(0);
 			}
 			 //Optimize model
@@ -403,12 +403,12 @@ void Test2()
 			nbArcsTooShort.push_back(make_pair(1,1));
 			
 
-			if (lastObj == 208 && cnt208 == 100)
-			{
-				model.write("wth.lp");
-				exit(0);
-			}
-			else if (lastObj == 208) cnt208++;
+			//if (lastObj == 208 && cnt208 == 100)
+			//{
+			//	model.write("wth.lp");
+			//	exit(0);
+			//}
+			//else if (lastObj == 208) cnt208++;
 			 
 			deletedVarList.clear();
 			addedNodeList.clear();
