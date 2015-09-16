@@ -251,9 +251,9 @@ void Test2()
 			nbIters++;
 			cout << "Iter " << nbIters << endl;
 
-			if (nbIters == 2000)
+			if (nbIters == 500)
 			{
-				model.write("tsp2000.lp");
+				model.write("tsp500.lp");
 				exit(0);
 			}
 			 //Optimize model
@@ -321,57 +321,19 @@ void Test2()
 			if (cycles.size()>1) //we have more than we sub-tours
 			{
 
-				addSubTourEliminationConstraints1(cycles); //remove them
+				//addSubTourEliminationConstraints1(cycles); //remove them
 
-				//int firstNonLiftedNodeIndex = firstNonLiftedNode(cycles[0]);
-				//
-				//if (firstNonLiftedNodeIndex != -1)
-				//{
-				//	UpdateArcsFollowingCycle(cycles[0], firstNonLiftedNodeIndex);
-				//	addSubTourEliminationConstraintsNoFirstCycle(cycles); //remove them
-				//}
-				//	
-				//else
-				//	addSubTourEliminationConstraints1(cycles);
+				int firstNonLiftedNodeIndex = firstNonLiftedNode(cycles[0]);
 				
-				
-				
-				//int violatedTerminal = -1;
-				//travellingTimeWindowCondition(cycles[0], violatedTerminal);
-
-				//vector<NODE> cycle = cycles[0];
-
-				//if (violatedTerminal != -1) //violation of time window at a terminal
-				//{
-				//	//addTimeWindowsViolationConstraint(cycles[0], violatedTerminal);
-
-				//	UpdateArcsFollowingCycle(cycle, violatedTerminal);
-				//}
-				//else
-				//{
-				//	addSubTourEliminationConstraints1(cycles); //remove them
-				//	UpdateArcsFollowingCycle(cycle, cycle.size() - 2);
-				//}
-
-
-				//if (violatedTerminal==-1)
+				if (firstNonLiftedNodeIndex != -1)
+				{
+					UpdateArcsFollowingCycle(cycles[0], firstNonLiftedNodeIndex);
+					addSubTourEliminationConstraintsNoFirstCycle(cycles); //remove them
+				}
 					
-
-
-				//int violatedTerminal = -1;
-				//for (int k = 0; k < cycles.size(); k++)
-				//{
-				//	travellingTimeWindowCondition(cycles[k], violatedTerminal);
-
-				//	vector<NODE> cycle = cycles[k];
-
-				//	if (violatedTerminal != -1) //violation of time window at a terminal
-				//	{
-				//		
-				//		UpdateArcsFollowingCycle(cycle, violatedTerminal);
-
-				//	}
-				//}
+				else
+					addSubTourEliminationConstraints1(cycles);
+								
 			}
 			else //checking time windows constraints
 			{
