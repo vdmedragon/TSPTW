@@ -244,12 +244,15 @@ void Test2()
 	bool solved = false;
 	double Obj = -1, lastObj = -1;
 	int cnt208 = 0;
+
+	vector < vector<NODE> > cycles;
+	
 	try
 	{
 		while (solved == false)
 		{
 			
-
+			cycles.clear();
 			nbIters++;
 			cout << "Iter " << nbIters << endl;
 
@@ -303,7 +306,7 @@ void Test2()
 			//for (int k = 0; k < selectedArcs.size(); k++)
 			//	cout << "(" << selectedArcs[k].i << "," << selectedArcs[k].t << ")-(" << selectedArcs[k].j << "," << selectedArcs[k].t_prime << ")" << endl;
 
-			vector < vector<NODE> > cycles;
+			
 
 			buildCycles(selectedArcs, cycles);
 
@@ -327,7 +330,7 @@ void Test2()
 
 				int firstNonLiftedNodeIndex = firstNonLiftedNode(cycles[0]);
 				
-				if (firstNonLiftedNodeIndex != -1)
+				if (firstNonLiftedNodeIndex != -1) //co canh vi pham
 				{
 					UpdateArcsFollowingCycle(cycles[0], firstNonLiftedNodeIndex);
 					addSubTourEliminationConstraintsNoFirstCycle(cycles); //remove them
@@ -336,65 +339,21 @@ void Test2()
 				else
 				{
 					int nbArcs = UpdateArcsFollowingCycle(cycles[0], cycles[0].size()-2);
-					if (nbArcs) 
+					if (nbArcs) //co canh nhac duoc
 						addSubTourEliminationConstraintsNoFirstCycle(cycles);
-					else
-						 addSubTourEliminationConstraints1(cycles);
+					else //moi canh deu da nhac
+						addSubTourEliminationConstraints1(cycles);
 				}
-					//addSubTourEliminationConstraints1(cycles);
-				
-				
-				
-				//int violatedTerminal = -1;
-				//travellingTimeWindowCondition(cycles[0], violatedTerminal);
-
-				//vector<NODE> cycle = cycles[0];
-
-				//if (violatedTerminal != -1) //violation of time window at a terminal
-				//{
-				//	//addTimeWindowsViolationConstraint(cycles[0], violatedTerminal);
-
-				//	UpdateArcsFollowingCycle(cycle, violatedTerminal);
-				//}
-				//else
-				//{
-				//	addSubTourEliminationConstraints1(cycles); //remove them
-				//	UpdateArcsFollowingCycle(cycle, cycle.size() - 2);
-				//}
-
-
-				//if (violatedTerminal==-1)
-					
-
-
-				//int violatedTerminal = -1;
-				//for (int k = 0; k < cycles.size(); k++)
-				//{
-				//	travellingTimeWindowCondition(cycles[k], violatedTerminal);
-
-				//	vector<NODE> cycle = cycles[k];
-
-				//	if (violatedTerminal != -1) //violation of time window at a terminal
-				//	{
-				//		
-				//		UpdateArcsFollowingCycle(cycle, violatedTerminal);
-
-				//	}
-				//}
 			}
 			else //checking time windows constraints
 			{
 				int violatedTerminal = -1;
 				travellingTimeWindowCondition(cycles[0], violatedTerminal);
 
-				Orderof1stInfeasibleTW.push_back(make_pair(nbIters, violatedTerminal));
-
 				vector<NODE> cycle = cycles[0];
 
 				if (violatedTerminal != -1) //violation of time window at a terminal
 				{
-					//addTimeWindowsViolationConstraint(cycles[0], violatedTerminal);
-
 					int nbArcTooShort = UpdateArcsFollowingCycle(cycle, violatedTerminal);
 					nbArcsTooShort.push_back(make_pair(nbIters, nbArcTooShort));
 				}
@@ -402,14 +361,18 @@ void Test2()
 				else
 				{
 					cout << "Obtain feasible solution regarding time window!" << endl;
-					return ; //we have a good solution
+					cout << "Obj = " << lastObj << endl;
+					break;
+					for (int k = 0; k < cycles[0].size(); k++)
+						cout << cycles[0][k].first + 1 << "-";
+					return; //we have a good solution
 				}
 					
 			}
 
-			numberofCycles.push_back(make_pair(nbIters, cycles.size()));			
-			objFunction.push_back(make_pair(nbIters, Obj));
-			nbArcsTooShort.push_back(make_pair(1,1));
+			//numberofCycles.push_back(make_pair(nbIters, cycles.size()));			
+			//objFunction.push_back(make_pair(nbIters, Obj));
+			//nbArcsTooShort.push_back(make_pair(1,1));
 			
 
 			//if (lastObj == 208 && cnt208 == 100)
@@ -443,8 +406,16 @@ void Test2()
 		cout << "Exception during optimization" << endl;
 		/*return false;*/
 	}
-
-
+	
+	for (int i = 0; i < cycles.size(); i++)
+	{
+		cout << "Solution: ";
+		for (int j = 1; j < cycles[i].size(); j++)
+			if (cycles[i][j].first != cycles[i][j-1].first)
+				cout << cycles[i][j-1].first + 1<< "-";
+		cout << 1 << endl;
+	} 
+ 
 }
 
 int main(int   argc,
@@ -458,25 +429,25 @@ int main(int   argc,
 
 	testReadingGraph(G);
 
-	CreateInitialParitalGraph(G, PTEG);
-	//CreateInitialParitalGraphWithOutZero(G, PTEG);
+	//CreateInitialParitalGraph(G, PTEG);
+	CreateInitialParitalGraphWithOutZero(G, PTEG);
 
+	//
 	InitialModelGeneration(G, PTEG);
 
 	
-
+	
 	model.write("tsp_ori.lp");
-
+	//return 0;
 	model.getEnv().set(GRB_IntParam_OutputFlag, 0);
 	
 	int start_s = clock();
 
-	freopen("out1000.txt", "wt", stdout);
+	freopen(argv[2], "wt", stdout);
 
  	Test2();
 
-	for (int i = 0; i <= nbArcLengthened.size(); i++)
-		nbArcsLengthened += nbArcLengthened[i].second;
+ 
 
 	 
  

@@ -288,7 +288,7 @@ namespace
 		//list of nodes in the partial graph
 		for (int i = 0; i < G.N0; i++)
 		{
-			PTEG.NT[i].insert(0);
+			//PTEG.NT[i].insert(0); 
 			PTEG.NT[i].insert(G.e[i]);
 			PTEG.NT[i].insert(G.l[i]);
 		}
@@ -301,22 +301,26 @@ namespace
 				int t = *t_it;
 				NODE source = make_pair(i, t); //current vertex s
 				
+				cout << "(" << i << "," << t << ")" << endl;
 				
-				if (t!=0 || (t==G.e[0] && i==0))
+				if (i == 0 && t == G.l[0])
+					continue;
+
 				//add crossing arcs
 				for (int j = 0; j < G.N0; j++)
 				{
-
-					if (i == j) continue;
-
+					if (i == j) continue;					
 
 					//find largest t' such that (j,t') in N_T and t' - t \leq \tau_{ij} - nghia la co canh noi duoc 2 dinh nay
 					int tau_ij = G.tau[i][j];
 
 					if (t + tau_ij > G.l[j]) continue; //do not consider this arc because it violates time window constraint
-
+					 
 					S_IT loc = PTEG.NT[j].upper_bound(t + tau_ij);
-					loc--;
+ 
+					if (loc!= PTEG.NT[j].begin())
+						loc--;
+ 
 					int t_prime = *loc;
 
 					NODE dest = make_pair(j, t_prime); //next vertex
@@ -333,10 +337,12 @@ namespace
 				{
 					int t_prime = *next;
 
-					assert(t != t_prime);
-
-					NODE dest = make_pair(i, t_prime);
-					PTEG.AT[source].insert(dest); //holding arc
+					//assert(t != t_prime);
+					if (t != t_prime)
+					{
+						NODE dest = make_pair(i, t_prime);
+						PTEG.AT[source].insert(dest); //holding arc
+					}
 				}
 			}
 	}
@@ -426,11 +432,13 @@ namespace
 
 		assert(next != PTEG.NT[i].end());
 
+		 
 
 		int t_k = *prev;
 		int t_k_plus_one = *next;
 
 		assert(t_k < t_new && t_new < t_k_plus_one);
+		 
 
 		//remove the holding arc (i,t_k) - (i,t_k_plus_one) - step 2
 		NODE prev_node = make_pair(i, t_k);
@@ -472,7 +480,7 @@ namespace
 
 			addedVarList.insert(VarIndex(i, t_new, j, t)); //will be adding new variables associated with these crossing arcs
 		}
-
+		 
 		return true;
 	}
 
@@ -497,6 +505,7 @@ namespace
 		//recover longest-feasible-path property
 		NODE prev_node = make_pair(i, t_k);
 		NODE new_node = make_pair(i, t_new);
+		
 		for (set<NODE>::iterator jt_node_it = PTEG.AT[prev_node].begin(); jt_node_it != PTEG.AT[prev_node].end(); jt_node_it++) //travese the list of arcs associated to prev_node - line 1
 		{
 			NODE jt_node = *jt_node_it; // = (j,t) 
@@ -507,24 +516,34 @@ namespace
 			if (i == j) //holding arc, not lengthen 
 				continue;
 
+			if (t_new + G.tau[i][j] > G.l[j])
+			{
+				addedVarList.erase(VarIndex(i, t_new, j, t)); //will remove associated variable from the model - do not add this arc to the model
+				continue;
+			}
+			
 			S_IT succ_tprime_it = PTEG.NT[j].upper_bound(t_new + G.tau[i][j]); //line 2, find successor of t'
-			S_IT t_prime_it = --succ_tprime_it; //t' now
+			
+			 
+
+			S_IT t_prime_it = succ_tprime_it; //t' now
+			if (t_prime_it != PTEG.NT[j].begin()) //in the case t_new + tau_ij < e[j]
+				t_prime_it--;
 
 			int t_prime = *t_prime_it;
 
 			if (t_prime != t) //line 3
 			{
+				assert(t_new + G.tau[i][j] <= G.l[j]);
+
 				PTEG.AT[new_node].erase(jt_node); //erase old arc related to new_node line 4
-
+				  
 				addedVarList.erase(VarIndex(i, t_new, j, t)); //will remove associated variable from the model - do not add this arc to the model
-
-				//deletedVarList.insert(VarIndex(i, t_new, j, t)); //will remove associated variable from the model
 
 				NODE jtprime_node = make_pair(j, t_prime);
 
 				PTEG.AT[new_node].insert(jtprime_node); //arc new arc related to new_node to enforce longest_feasiblity_path property
 
-				
 				addedVarList.insert(VarIndex(i, t_new, j, t_prime)); //will add associated variable to the model
 			}
 		}
@@ -549,9 +568,7 @@ namespace
 
 					PTEG.AT[jt_node].insert(new_node);
 
-					 
 					addedVarList.insert(VarIndex(j, t, i, t_new)); //will add the variable associated with this arc to the model
-					 
 				}
 		}
 	}
@@ -583,10 +600,13 @@ namespace
 		//deletedVarList.insert(old_arc);
 
 		bool added_arc = REFINE(new_arc.j, new_arc.t_prime, G,PTEG, addedNodeList, addedVarList, deletedVarList);
-
+		cout << "Finish added nodes && related arcs!Done!" << endl;
 		if (added_arc == true)
-			RESTORE(new_arc.j, new_arc.t_prime, G, PTEG, addedVarList, deletedVarList);  
-		
+		{
+			RESTORE(new_arc.j, new_arc.t_prime, G, PTEG, addedVarList, deletedVarList);
+			cout << "Finish lengthen arcs!Done!" << endl;
+
+		}
 		return true; 
 	}
 
