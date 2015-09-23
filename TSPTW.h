@@ -483,6 +483,9 @@ namespace
 			if (t_new + G.tau[i][j] > G.l[j]) 
 				continue;
 
+			if (t_new + G.tau[i][j] < G.e[i])
+				t = G.e[i];
+				
 			addedVarList.insert(VarIndex(i, t_new, j, t)); //will be adding new variables associated with these crossing arcs
 		}
 		 
