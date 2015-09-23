@@ -1,5 +1,5 @@
 #include "gurobi_c++.h"
-#include "TSPTW.h"
+#include "Header.h"
 #include <vector>
 #include <set>
 #include <map>
@@ -11,7 +11,7 @@
 using std::cout;
 
 using namespace std;
- 
+
 int nbSubTours = 0;
 int nbArcsLengthened = 0;
 int AverageOrder = 0;
@@ -244,14 +244,14 @@ void Test2()
 
 	bool solved = false;
 	double Obj = -1, lastObj = -1;
-  
+
 	vector < vector<NODE> > cycles;
-	
+
 	try
 	{
 		while (solved == false)
 		{
-			
+
 			cycles.clear();
 			nbIters++;
 			cout << "Iter " << nbIters << endl;
@@ -261,7 +261,7 @@ void Test2()
 				model.write("tsp2000.lp");
 				exit(0);
 			}
-			 //Optimize model
+			//Optimize model
 
 			model.optimize();
 
@@ -306,7 +306,7 @@ void Test2()
 			//for (int k = 0; k < selectedArcs.size(); k++)
 			//	cout << "(" << selectedArcs[k].i << "," << selectedArcs[k].t << ")-(" << selectedArcs[k].j << "," << selectedArcs[k].t_prime << ")" << endl;
 
-			
+
 
 			buildCycles(selectedArcs, cycles);
 
@@ -316,7 +316,7 @@ void Test2()
 			cout << "List of cycles after moving the earliest node to the first position" << endl;
 			for (int i = 0; i < cycles.size(); i++)
 			{
-				cout << "Cycle " << i + 1<< ":";
+				cout << "Cycle " << i + 1 << ":";
 				for (int j = 0; j < cycles[i].size(); j++)
 					cout << "(" << cycles[i][j].first << "," << cycles[i][j].second << ")-";
 				cout << endl;
@@ -329,16 +329,16 @@ void Test2()
 				//addSubTourEliminationConstraints1(cycles); //remove them
 
 				int firstNonLiftedNodeIndex = firstNonLiftedNode(cycles[0]);
-				
+
 				if (firstNonLiftedNodeIndex != -1) //co canh vi pham
 				{
 					UpdateArcsFollowingCycle(cycles[0], firstNonLiftedNodeIndex);
 					addSubTourEliminationConstraintsNoFirstCycle(cycles); //remove them
 				}
-					
+
 				else
 				{
-					int nbArcs = UpdateArcsFollowingCycle(cycles[0], cycles[0].size()-2);
+					int nbArcs = UpdateArcsFollowingCycle(cycles[0], cycles[0].size() - 2);
 					if (nbArcs) //co canh nhac duoc
 						addSubTourEliminationConstraintsNoFirstCycle(cycles);
 					else //moi canh deu da nhac
@@ -367,33 +367,33 @@ void Test2()
 					int nbArcTooShort = UpdateArcsFollowingCycle(cycle, violatedTerminal);
 					nbArcsTooShort.push_back(make_pair(nbIters, nbArcTooShort));
 				}
-					
+
 				else
 				{
 					cout << "Obtain feasible solution regarding time window!" << endl;
 					cout << "Obj = " << Obj << endl;
-					
+
 					for (int k = 0; k < cycles[0].size(); k++)
 						cout << cycles[0][k].first + 1 << "-";
 					cout << endl << "Execution time: " << (clock() - start_s) / double(CLOCKS_PER_SEC) << endl;
-					
+
 					return; //we have a good solution
 				}
-					
+
 			}
-			 
+
 			deletedVarList.clear();
 			addedNodeList.clear();
 			addedVarList.clear();
 
 			int stop_s = clock();
-			
+
 			if ((stop_s - start_s) / double(CLOCKS_PER_SEC) > 36000)
 			{
 				cout << "Stop do run qua lau !" << endl;
 				break;
 			}
-				
+
 			cout << "************************************************************************************" << endl;
 		}
 	}
@@ -406,18 +406,18 @@ void Test2()
 		cout << "Exception during optimization" << endl;
 		/*return false;*/
 	}
-	
-	 
+
+
 	for (int i = 0; i < cycles.size(); i++)
 	{
 		cout << "Solution: ";
 		for (int j = 1; j < cycles[i].size(); j++)
-			if (cycles[i][j].first != cycles[i][j-1].first)
-				cout << cycles[i][j-1].first + 1<< "-";
+			if (cycles[i][j].first != cycles[i][j - 1].first)
+				cout << cycles[i][j - 1].first + 1 << "-";
 		cout << cycles[i][cycles[i].size() - 1].first + 1 << endl;
 		//if (i==0) cout << 1 << endl;
 		//else cout << endl;
-	} 
+	}
 
 	unknownreason = 1;
 
@@ -428,7 +428,7 @@ int main(int   argc,
 {
 
 	cout << "File name:" << argv[1] << endl;
-
+	freopen(argv[1], "rt", stdin);
 	//readOriginalGraph(G, argv[1]);
 	readOriginalGraph_rfsilva(G, argv[1]);
 
@@ -441,8 +441,8 @@ int main(int   argc,
 	//
 	InitialModelGeneration(G, PTEG);
 
-	
-	
+
+
 	model.write("tsp_ori.lp");
 	//return 0;
 	model.getEnv().set(GRB_IntParam_OutputFlag, 0);
@@ -451,8 +451,8 @@ int main(int   argc,
 
 	freopen(argv[2], "wt", stdout);
 
- 	Test2();
-	
+	Test2();
+
 	if (unknownreason)
 	{
 		string lpmodel(argv[2]);
