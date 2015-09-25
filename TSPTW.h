@@ -204,6 +204,9 @@ namespace
 				G.tau[i][j] = G.tau[j][i] = G.rtau[i][j]=G.rtau[j][i]=dist;
 			}
 
+		for (int i = 1; i < G.N0; i++)
+			G.e[i] = max(G.e[i], G.tau[0][i]);
+
 		fclose(stdin);
 	}
 
@@ -333,6 +336,9 @@ namespace
 
 					PTEG.AT[source].insert(dest); //add an arc from source to dest -
 
+					//if (t + tau_ij < G.e[j])
+					//	cout << "Waiting at " << j << " because of early arrival with departure from "<< i<< " at time point "<<t<<endl;
+					//cout << "(" << i << "," << t << ")-(" << j << "," << t_prime << ")" << endl;
 				}
 				//add a holding arc
 
@@ -480,7 +486,7 @@ namespace
 				continue; //holding arc
 
 			//add more condition here
-			if (t_new + G.tau[i][j] > G.l[j]) 
+			if (t_new + G.tau[i][j] > G.l[j]) //cannot add this arc because of time window condition
 				continue;
 
 			if (t_new + G.tau[i][j] < G.e[i])
@@ -567,7 +573,7 @@ namespace
 			if (i == j)
 				continue;
 
-			if (t + G.tau[j][i] >= t_new) //line 7 condition; the distance between two terminals is not so long
+			if (t + G.tau[j][i] >= t_new && t + G.tau[j][i] <= G.l[i]) //line 7 condition; the distance between two terminals is not so long and not so late
 				if (s_jt.find(prev_node) != s_jt.end()) //if there is an arc from jt-node to the prev node; replace with the new arc to enforce longest_ feasible_path
 				{
 					PTEG.AT[jt_node].erase(prev_node);
@@ -601,6 +607,9 @@ namespace
 		if (x_a.find(new_arc) != x_a.end())
 		{
 			cout << "The arc "<< new_arc << " is already in the model" << endl;
+			
+			addedVarList.erase(new_arc);
+			
 			return false;
 		}
 		
@@ -618,11 +627,122 @@ namespace
 		return true; 
 	}
 
+	void UpdateManyTimeForShortCycle(vector<NODE> &cycle)
+	{
+		int curTime = cycle[0].second; //la thoi diem bat dau cua diem thap nhat
+		int prevTime = -1;
+		int nbModificationArcs = 0;
+		bool change = false;
+
+		for (int idx = 1; ; idx++)
+		{
+
+			addedNodeList.clear();
+			addedVarList.clear();
+			deletedVarList.clear();
+
+			//if (change) //perform only 1 change
+			//	break; 
+
+			NODE prev = cycle[idx - 1];
+			NODE cur = cycle[idx];
+
+			int i = prev.first, t = prev.second;
+			int j = cur.first, t_prime = cur.second;
+
+			prevTime = curTime;
+			curTime = max(curTime + G.tau[i][j], G.e[j]);
+
+			VarIndex old_arc(i, t, j, t_prime); //old arc in the list
+
+			VarIndex new_arc(i, prevTime, j, curTime); //new arc
+
+			cout << "************************************" << endl;
+			cout << "Is trying to remove old arc" << old_arc << endl;
+			cout << "Is trying to add new arc" << new_arc << endl;
+
+			if (i == j && prevTime == curTime && t_prime > curTime)
+			{
+				cout << "Holding arcs! Do nothing!" << endl;
+				curTime = t_prime;
+				continue;
+			}
+
+			if (isTheSameArc(old_arc, new_arc) && curTime <= G.l[j])
+			{
+				cout << "They are same arc! Already lengthened so cannnot remove!" << endl;
+				continue; //this arc is already lengthened. 
+			}
+			else if (isTheSameArc(old_arc, new_arc) && curTime > G.l[j])
+			{
+				deletedVarList.insert(old_arc); //remove because this arc violate time window constraint at j
+			}
+
+
+			if (!tooLate(new_arc) && t != prevTime) //nghia la old_arc va new_arc xuat phat tu hai diem khac nhau, giu old arc
+			{
+				cout << "Keep old arcs while adding new arcs because they depart at different time!" << endl;
+
+				deletedVarList.erase(old_arc);
+				//continue; 
+			}
+			else if (!tooLate(new_arc))
+			{
+				cout << "Is able to remove old arc! Two arcs depart from a same time!" << endl;
+				deletedVarList.insert(old_arc); //xoa old_arc
+			}
+
+			if (isValidArc(new_arc)) //them duoc arc moi, cac diem deu thoa man time window
+			{
+				nbModificationArcs++;
+				addedVarList.insert(new_arc);
+				ARC_MODIFICATION(old_arc, new_arc);
+			}
+			else
+			{
+				cout << "New arc is too late!Cannot added! " << endl;
+				if (t == prevTime)
+				{
+					cout << "Previous arc is lengthened! So remove old arc!" << endl;
+					deletedVarList.insert(old_arc);
+				}
+			}
+
+			//actually adding arcs to the model
+			addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
+
+			change = deletedVarList.size() + addedVarList.size() + addedNodeList.size() > 0;
+
+			nbModificationArcs += deletedVarList.size() + addedVarList.size() + addedNodeList.size();
+
+			cout << "New nodes:";
+			cout << addedNodeList.size() << endl;
+			//printAddedNodeList(addedNodeList);
+			//if (addedNodeList.size() == 0) cout << "No new nodes" << endl;
+
+			cout << "New added arcs:";
+			cout << addedVarList.size() << endl;
+
+			//if (addedVarList.size()) cout << endl;
+			//printAddedArcsList(addedVarList);
+			//if (addedVarList.size() == 0) cout << "No new arcs " << endl;
+
+			cout << "Old removed arcs:";
+			cout << deletedVarList.size() << endl;
+
+			//if (deletedVarList.size()) cout << endl;
+			//printRemovedArcsList(deletedVarList);
+			//if (deletedVarList.size() == 0) cout << "No removed arcs" << endl;
+		}
+		return ;
+
+	}
+
 	//update each node to its correct location if we move along this cycle
 	//remove violated arcs if this cycle has
 	int UpdateArcsFollowingCycle(vector<NODE> &cycle, int violatedTerminal)
 	{
-		int curTime = G.e[cycle[0].first]; //la thoi diem bat dau cua diem thap nhat
+		int curTime = cycle[0].second; //la thoi diem bat dau cua diem thap nhat
 		int prevTime = -1;
 		int nbModificationArcs = 0;
 		bool change = false;
@@ -634,8 +754,8 @@ namespace
 			addedVarList.clear();
 			deletedVarList.clear();
 
-			if (change) //perform only 1 change
-				break; 
+			//if (change) //perform only 1 change
+			//	break; 
 
 			NODE prev = cycle[idx - 1];
 			NODE cur = cycle[idx];
@@ -675,6 +795,8 @@ namespace
 			if (!tooLate(new_arc) && t != prevTime) //nghia la old_arc va new_arc xuat phat tu hai diem khac nhau, giu old arc
 			{
 				cout << "Keep old arcs while adding new arcs because they depart at different time!" << endl;
+
+				deletedVarList.erase(old_arc);
 				//continue; 
 			}
 			else if (!tooLate(new_arc))
@@ -699,6 +821,7 @@ namespace
 				}
 			}
 
+			//actually adding arcs to the model
 			addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
 
 			change = deletedVarList.size() + addedVarList.size() + addedNodeList.size() > 0;
@@ -706,23 +829,26 @@ namespace
 			nbModificationArcs += deletedVarList.size() + addedVarList.size() + addedNodeList.size();
 			
 			cout << "New nodes:";
-			printAddedNodeList(addedNodeList);
-			if (addedNodeList.size() == 0) cout << "No new nodes" << endl;
-			else cout << endl;
+			cout << addedNodeList.size() << endl; 
+			//printAddedNodeList(addedNodeList);
+			//if (addedNodeList.size() == 0) cout << "No new nodes" << endl;
 
 			cout << "New added arcs:";
-			if (addedVarList.size()) cout << endl;
+			cout << addedVarList.size() << endl;
 
-			printAddedArcsList(addedVarList);
-			if (addedVarList.size() == 0) cout << "No new arcs " << endl;
+			//if (addedVarList.size()) cout << endl;
+			//printAddedArcsList(addedVarList);
+			//if (addedVarList.size() == 0) cout << "No new arcs " << endl;
 
 			cout << "Old removed arcs:";
-			if (deletedVarList.size()) cout << endl;
+			cout << deletedVarList.size() << endl;
 
-			printRemovedArcsList(deletedVarList);
-			if (deletedVarList.size() == 0) cout << "No removed arcs" << endl;
+			//if (deletedVarList.size()) cout << endl;
+			//printRemovedArcsList(deletedVarList);
+			//if (deletedVarList.size() == 0) cout << "No removed arcs" << endl;
 		}
-		return nbModificationArcs;
+		return 0;
+		//return nbModificationArcs;
 	}
 	/**********************************************************Initial model generation function******************************************************************/
 
@@ -914,9 +1040,9 @@ namespace
 
 		}
 		catch (GRBException e) {
-			cout << "Error code = " << e.getErrorCode() << endl;
+			cout << "Error code = " << e.getErrorCode() << "in Inital Model Generation" << endl;
 			cout << e.getMessage() << endl;
-			return false;
+			exit(0);
 		}
 		catch (...) {
 			cout << "Exception during optimization" << endl;
@@ -1128,7 +1254,7 @@ namespace
 		catch (GRBException e) {
 			cout << "Error code in addNodeArcToModel " << e.getErrorCode() << endl;
 			cout << e.getMessage() << endl;
-			/*	return false;*/
+			exit(0);
 		}
 		catch (...) {
 			cout << "Exception during optimization" << endl;
@@ -1138,7 +1264,7 @@ namespace
 
 
 	/**********************************************************Build Cycles from Selected Arcs******************************************************************/
-	void buildCycles(vector<VarIndex> selectedArcs, vector<vector<NODE> > &cycles)
+	bool buildCycles(vector<VarIndex> selectedArcs, vector<vector<NODE> > &cycles)
 	{
 		bool *mark = new bool[selectedArcs.size() + 1];
 
@@ -1190,11 +1316,13 @@ namespace
 				if (curCycle[0].first != curCycle[curCycle.size() - 1].first)
 				{
 					cout << "Not a cycles!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-					exit(0);
+					return 0;
 				}
 				cycles.push_back(curCycle);
 
 			}
+		
+		return 1;
 	}
 
 	void earliestFirst(vector < vector<NODE> > &cycles)
@@ -1253,9 +1381,7 @@ namespace
 
 	int firstNonLiftedNode(vector<NODE>  &cycle)
 	{
-
-
-		int curTime = G.e[0];
+		int curTime = cycle[0].second;
 
 		for (int idx = 1; idx + 1 < cycle.size(); idx++)
 		{
@@ -1271,6 +1397,25 @@ namespace
 			}
 			else
 				curTime = max(curTime + G.tau[i][j], G.e[j]);
+		}
+		return -1;
+	}
+	int firstViolatedNode(vector<NODE>  &cycle)
+	{
+		int curTime = cycle[0].second;
+
+		for (int idx = 1; idx < cycle.size(); idx++)
+		{
+			NODE prev = cycle[idx - 1];
+			NODE cur = cycle[idx];
+
+			int i = prev.first, t = prev.second;
+			int j = cur.first, t_prime = cur.second;
+
+			if (curTime + G.tau[i][j] > G.l[j])
+				return idx;
+			
+			curTime = max(curTime + G.tau[i][j], G.e[j]);
 		}
 		return -1;
 	}
@@ -1305,9 +1450,9 @@ namespace
 		}
 
 		catch (GRBException e) {
-			cout << "Error code = " << e.getErrorCode() << endl;
+			cout << "Error code = " << e.getErrorCode() << "in addTimeWIndowsViolationConstraint" << endl;
 			cout << e.getMessage() << endl;
-			/*	return false;*/
+			exit(0);
 		}
 		catch (...) {
 			cout << "Exception during optimization" << endl;
