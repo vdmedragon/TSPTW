@@ -32,31 +32,35 @@ void addaSingleSubTourConstraint(vector<NODE> &cycle)
 {
 
 	try{
+		for (int i = 0; i < cycle.size(); i++)
+			cout << "(" << cycle[i].first << "," << cycle[i].second << ")-";
+		
+		cout << endl;
 
-			if (cycle[0].first == cycle[cycle.size() - 1].first && cycle[0].second == cycle[cycle.size() - 1].second)
+		if (cycle[0].first == cycle[cycle.size() - 1].first && cycle[0].second == cycle[cycle.size() - 1].second)
+		{
+				 
+			GRBLinExpr subTour = 0;
+			bool noSubTour = false;
+			for (int idx = 1; idx < cycle.size(); idx++)
 			{
-				//cout << "Adding subtour constraint " << k << endl;
-				GRBLinExpr subTour = 0;
-				bool noSubTour = false;
-				for (int idx = 1; idx < cycle.size(); idx++)
-				{
-					int i = cycle[idx - 1].first;
-					int t = cycle[idx - 1].second;
-					int j = cycle[idx].first;
-					int t_prime = cycle[idx].second;
+				int i = cycle[idx - 1].first;
+				int t = cycle[idx - 1].second;
+				int j = cycle[idx].first;
+				int t_prime = cycle[idx].second;
 
-					subTour += x_a[VarIndex(i, t, j, t_prime)];
-				}
-
-				if (noSubTour == false)
-				{
-					//cout << "Is adding a new subtour constraint" << k << endl;
-
-					ostringstream subTourCons;
-					subTourCons << "SubTour_" << cycle[0].first << "." << cycle[0].second;
-					model.addConstr(subTour <= cycle.size() - 2, subTourCons.str());
-				}
+				subTour += x_a[VarIndex(i, t, j, t_prime)];
 			}
+
+			if (noSubTour == false)
+			{
+				//cout << "Is adding a new subtour constraint" << k << endl;
+
+				ostringstream subTourCons;
+				subTourCons << "SubTour_" << cycle[0].first << "." << cycle[0].second;
+				model.addConstr(subTour <= cycle.size() - 2, subTourCons.str());
+			}
+		}
 	}
 
 	catch (GRBException e) {
@@ -142,6 +146,81 @@ bool liftUntilViolatedNode(vector<NODE> cycle)
 	}
 	else return 0;
 	
+}
+
+void LiftOnlyFirstCycle(vector< vector <NODE> > cycles)
+{
+	int firstNonLiftedNodeIndex = firstNonLiftedNode(cycles[0]);
+
+	if (firstNonLiftedNodeIndex != -1) //co canh vi pham
+	{
+		cout << " Cycle 0 has non lifted nodes! Add all subtour constraints except the first! " << endl;
+		UpdateArcsFollowingCycle(cycles[0], firstNonLiftedNodeIndex);
+		addSubTourEliminationConstraintsNoFirstCycle(cycles); //remove them
+	}
+
+	else
+	{
+		cout << "Try to lift some nodes from the first cycle " << endl;
+		int nbArcs = UpdateASingleArcFollowingCycle(cycles[0], cycles[0].size() - 2);
+		//cout << "****************AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA*****************************" << endl;
+		if (nbArcs) //co canh nhac duoc
+		{
+			cout << "Add add subtours except 0 " << endl;
+			addSubTourEliminationConstraintsNoFirstCycle(cycles);
+		}
+		else //moi canh deu da nhac
+		{
+			cout << " Add all subtours " << endl;
+			addSubTourEliminationConstraints1(cycles);
+		}
+	}
+}
+
+void LiftManyCyclesAndSubtourCycleLength2(vector< vector <NODE> > cycles)
+{
+	for (int k = 0; k < cycles.size(); k++)
+	{
+		cout << "Lifting cycle numbered " << k << endl;
+		bool change = liftUntilViolatedNode(cycles[k]); //do the lift
+		if (change == false && k > 0)
+		{
+			if (cycles[k].size() > 3)
+				UpdateArcsFollowingCycle(cycles[k], cycles[k].size() - 1); //no time-window violation but we perform lift 
+			else
+				addaSingleSubTourConstraint(cycles[k]);
+
+		}
+			
+		else if (k==0 && change ==false)
+			addaSingleSubTourConstraint(cycles[0]); //cycle 0, add subtour constraint
+		cout << "*************************************" << endl;
+	}
+}
+
+void LiftCycleLength2(vector<NODE> cycle)
+{
+	int i = cycle[1].first;
+	int t = cycle[1].second;
+	int j = cycle[2].first;
+	int t_prime = cycle[2].second;
+
+	int curTime = t, prevTime = t_prime;
+
+	deletedVarList.insert(VarIndex(i, t, j, t_prime));
+	
+	//for (int k = 0; ;k++)
+	//{
+
+	//	
+	//	ARC_MODIFICATION(old_arc, new_arc);
+	//	
+	//	//actually adding arcs to the model
+	//	addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
+
+	//}
+
+ 
 }
 
 void Test2()
@@ -242,47 +321,20 @@ void Test2()
 
 				////addSubTourEliminationConstraints1(cycles); //remove them
 
-				//int firstNonLiftedNodeIndex = firstNonLiftedNode(cycles[0]);
-				//
-				//if (firstNonLiftedNodeIndex != -1) //co canh vi pham
-				//{
-				//	UpdateArcsFollowingCycle(cycles[0], firstNonLiftedNodeIndex);
-				//	addSubTourEliminationConstraintsNoFirstCycle(cycles); //remove them
-				//}
-				//	
-				//else
-				//{
-				//	int nbArcs = UpdateArcsFollowingCycle(cycles[0], cycles[0].size()-2);
-				//	if (nbArcs) //co canh nhac duoc
-				//		addSubTourEliminationConstraintsNoFirstCycle(cycles);
-				//	else //moi canh deu da nhac
-				//		addSubTourEliminationConstraints1(cycles);
-				//}
-
-				for (int k = 0; k < cycles.size(); k++)
-				{
-					cout << "Lifting cycle numbered " << k << endl;
-					bool change = liftUntilViolatedNode(cycles[k]); //do the lift
-					if (change == false && k > 0)
-						UpdateArcsFollowingCycle(cycles[k], cycles[k].size()-1); //no time-window violation but we perform lift 
-					else if (k==0 && change ==false)
-						addaSingleSubTourConstraint(cycles[0]); //cycle 0, add subtour constraint
-					cout << "*************************************" << endl;
-				}
+				//LiftOnlyFirstCycle(cycles);
+				
+				LiftManyCyclesAndSubtourCycleLength2(cycles);
+	
 			}
 			else //checking time windows constraints
 			{
-				int violatedTerminal = -1;
-				travellingTimeWindowCondition(cycles[0], violatedTerminal);
+				int violatedTerminal = travellingTimeWindowCondition(cycles[0]);
 
 				vector<NODE> cycle = cycles[0];
 
 				if (violatedTerminal != -1) //violation of time window at a terminal
-				{
 					int nbArcTooShort = UpdateArcsFollowingCycle(cycle, violatedTerminal);
-					nbArcsTooShort.push_back(make_pair(nbIters, nbArcTooShort));
-				}
-					
+
 				else
 				{
 					cout << "Obtain feasible solution regarding time window!" << endl;
@@ -349,7 +401,11 @@ int main(int   argc,
 	cout << "File name:" << argv[1] << endl;
 
 	//readOriginalGraph(G, argv[1]);
-	readOriginalGraph_rfsilva(G, argv[1]);
+	//readOriginalGraph_rfsilva(G, argv[1]);
+	readOriginalGraph_Ascheuer(G, argv[1]);
+	testReadingGraph(G);
+	
+	//return 0;
 
 	cout << "Starting the solution procedure!" << endl;
 	//testReadingGraph(G);

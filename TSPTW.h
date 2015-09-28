@@ -176,6 +176,25 @@ namespace
 		fclose(stdin);
 	}
 
+	void readOriginalGraph_Ascheuer(OriginalGraph &G, char *INPUT)
+	{
+		freopen(INPUT, "rt", stdin);
+		cin >> G.N0;
+		for (int i = 0; i < G.N0; i++)
+			for (int j = 0; j < G.N0; j++)
+			{
+				double distance;
+				cin >> distance;
+				G.tau[i][j] = G.rtau[i][j] = distance;
+			}
+		for (int i = 0; i < G.N0; i++)
+			cin >> G.e[i] >> G.l[i];
+
+		for (int i = 0; i < G.N0; i++)
+			G.e[i] = max(G.e[i], G.tau[0][i]);
+
+	}
+
 	void readOriginalGraph_rfsilva(OriginalGraph &G, char *INPUT)
 	{
 		freopen(INPUT, "rt", stdin);
@@ -736,6 +755,229 @@ namespace
 		}
 		return ;
 
+	}
+
+	//update each node to its correct location if we move along this cycle
+	//remove violated arcs if this cycle has
+	int UpdateOnlyASingArcFollowingCycle(vector<NODE> &cycle, int violatedTerminal)
+	{
+		int curTime = cycle[0].second; //la thoi diem bat dau cua diem thap nhat
+		int prevTime = -1;
+		int nbModificationArcs = 0;
+		bool change = false;
+
+		for (int idx = 1; idx <= violatedTerminal; idx++)
+		{
+
+			addedNodeList.clear();
+			addedVarList.clear();
+			deletedVarList.clear();
+
+			if (change) //perform only 1 change
+				break; 
+
+			NODE prev = cycle[idx - 1];
+			NODE cur = cycle[idx];
+
+			int i = prev.first, t = prev.second;
+			int j = cur.first, t_prime = cur.second;
+
+			prevTime = curTime;
+			curTime = max(curTime + G.tau[i][j], G.e[j]);
+
+			VarIndex old_arc(i, t, j, t_prime); //old arc in the list
+
+			VarIndex new_arc(i, prevTime, j, curTime); //new arc
+
+			cout << "************************************" << endl;
+			cout << "Is trying to remove old arc" << old_arc << endl;
+			cout << "Is trying to add new arc" << new_arc << endl;
+
+			if (i == j && prevTime == curTime && t_prime > curTime)
+			{
+				cout << "Holding arcs! Do nothing!" << endl;
+				curTime = t_prime;
+				continue;
+			}
+
+			if (isTheSameArc(old_arc, new_arc) && curTime <= G.l[j])
+			{
+				cout << "They are same arc! Already lengthened so cannnot remove!" << endl;
+				continue; //this arc is already lengthened. 
+			}
+			else if (isTheSameArc(old_arc, new_arc) && curTime > G.l[j])
+			{
+				deletedVarList.insert(old_arc); //remove because this arc violate time window constraint at j
+			}
+
+
+			if (!tooLate(new_arc) && t != prevTime) //nghia la old_arc va new_arc xuat phat tu hai diem khac nhau, giu old arc
+			{
+				cout << "Keep old arcs while adding new arcs because they depart at different time!" << endl;
+
+				deletedVarList.erase(old_arc);
+				//continue; 
+			}
+			else if (!tooLate(new_arc))
+			{
+				cout << "Is able to remove old arc! Two arcs depart from a same time!" << endl;
+				deletedVarList.insert(old_arc); //xoa old_arc
+			}
+
+			if (isValidArc(new_arc)) //them duoc arc moi, cac diem deu thoa man time window
+			{
+				nbModificationArcs++;
+				addedVarList.insert(new_arc);
+				ARC_MODIFICATION(old_arc, new_arc);
+			}
+			else
+			{
+				cout << "New arc is too late!Cannot added! " << endl;
+				if (t == prevTime)
+				{
+					cout << "Previous arc is lengthened! So remove old arc!" << endl;
+					deletedVarList.insert(old_arc);
+				}
+			}
+
+			//actually adding arcs to the model
+			addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
+
+			change = deletedVarList.size() + addedVarList.size() + addedNodeList.size() > 0;
+
+			nbModificationArcs += deletedVarList.size() + addedVarList.size() + addedNodeList.size();
+
+			cout << "New nodes:";
+			cout << addedNodeList.size() << endl;
+			//printAddedNodeList(addedNodeList);
+			//if (addedNodeList.size() == 0) cout << "No new nodes" << endl;
+
+			cout << "New added arcs:";
+			cout << addedVarList.size() << endl;
+
+			//if (addedVarList.size()) cout << endl;
+			//printAddedArcsList(addedVarList);
+			//if (addedVarList.size() == 0) cout << "No new arcs " << endl;
+
+			cout << "Old removed arcs:";
+			cout << deletedVarList.size() << endl;
+
+			//if (deletedVarList.size()) cout << endl;
+			//printRemovedArcsList(deletedVarList);
+			//if (deletedVarList.size() == 0) cout << "No removed arcs" << endl;
+		}
+		return 0;
+		//return nbModificationArcs;
+	}
+
+	int UpdateASingleArcFollowingCycle(vector<NODE> &cycle, int violatedTerminal)
+	{
+		int curTime = cycle[0].second; //la thoi diem bat dau cua diem thap nhat
+		int prevTime = -1;
+		int nbModificationArcs = 0;
+		bool change = false;
+
+		for (int idx = 1; idx <= violatedTerminal; idx++)
+		{
+
+			addedNodeList.clear();
+			addedVarList.clear();
+			deletedVarList.clear();
+
+			NODE prev = cycle[idx - 1];
+			NODE cur = cycle[idx];
+
+			int i = prev.first, t = prev.second;
+			int j = cur.first, t_prime = cur.second;
+
+			prevTime = curTime;
+			curTime = max(curTime + G.tau[i][j], G.e[j]);
+
+			VarIndex old_arc(i, t, j, t_prime); //old arc in the list
+
+			VarIndex new_arc(i, prevTime, j, curTime); //new arc
+
+			cout << "************************************" << endl;
+			cout << "Is trying to remove old arc" << old_arc << endl;
+			cout << "Is trying to add new arc" << new_arc << endl;
+
+			if (i == j && prevTime == curTime && t_prime > curTime)
+			{
+				cout << "Holding arcs! Do nothing!" << endl;
+				curTime = t_prime;
+				continue;
+			}
+
+			if (isTheSameArc(old_arc, new_arc) && curTime <= G.l[j])
+			{
+				cout << "They are same arc! Already lengthened so cannnot remove!" << endl;
+				continue; //this arc is already lengthened. 
+			}
+			else if (isTheSameArc(old_arc, new_arc) && curTime > G.l[j])
+			{
+				deletedVarList.insert(old_arc); //remove because this arc violate time window constraint at j
+			}
+
+
+			if (!tooLate(new_arc) && t != prevTime) //nghia la old_arc va new_arc xuat phat tu hai diem khac nhau, giu old arc
+			{
+				cout << "Keep old arcs while adding new arcs because they depart at different time!" << endl;
+
+				deletedVarList.erase(old_arc);
+				//continue; 
+			}
+			else if (!tooLate(new_arc))
+			{
+				cout << "Is able to remove old arc! Two arcs depart from a same time!" << endl;
+				deletedVarList.insert(old_arc); //xoa old_arc
+			}
+
+			if (isValidArc(new_arc)) //them duoc arc moi, cac diem deu thoa man time window
+			{
+				nbModificationArcs++;
+				addedVarList.insert(new_arc);
+				ARC_MODIFICATION(old_arc, new_arc);
+			}
+			else
+			{
+				cout << "New arc is too late!Cannot added! " << endl;
+				if (t == prevTime)
+				{
+					cout << "Previous arc is lengthened! So remove old arc!" << endl;
+					deletedVarList.insert(old_arc);
+				}
+			}
+
+			//actually adding arcs to the model
+			addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
+
+			change = deletedVarList.size() + addedVarList.size() + addedNodeList.size() > 0;
+
+			nbModificationArcs += deletedVarList.size() + addedVarList.size() + addedNodeList.size();
+
+			if (change)
+				return 1;
+			cout << "New nodes:";
+			cout << addedNodeList.size() << endl;
+			//printAddedNodeList(addedNodeList);
+			//if (addedNodeList.size() == 0) cout << "No new nodes" << endl;
+
+			cout << "New added arcs:";
+			cout << addedVarList.size() << endl;
+
+			//if (addedVarList.size()) cout << endl;
+			//printAddedArcsList(addedVarList);
+			//if (addedVarList.size() == 0) cout << "No new arcs " << endl;
+
+			cout << "Old removed arcs:";
+			cout << deletedVarList.size() << endl;
+
+			//if (deletedVarList.size()) cout << endl;
+			//printRemovedArcsList(deletedVarList);
+			//if (deletedVarList.size() == 0) cout << "No removed arcs" << endl;
+		}
+		return 0;
+		//return nbModificationArcs;
 	}
 
 	//update each node to its correct location if we move along this cycle
@@ -1351,7 +1593,7 @@ namespace
 	}
 
 	/**********************************************************Checking time window function******************************************************************/
-	bool travellingTimeWindowCondition(vector<NODE>  &cycle, int &violatedTerminal)
+	int travellingTimeWindowCondition(vector<NODE>  &cycle)
 	{
 
 		
@@ -1369,14 +1611,14 @@ namespace
 			{
 				//lengthen it? it is not true ...
 				cout << "Arrive too late at terminal " << j << " indexed "<< idx<<endl;
-				violatedTerminal = idx;
-				return false;
+				return idx;
+				 
 
 			}
 			else
 				curTime = max(curTime + G.rtau[i][j], (double)G.e[j]);
 		}
-		return true;
+		return -1;
 	}
 
 	int firstNonLiftedNode(vector<NODE>  &cycle)
