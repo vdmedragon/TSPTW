@@ -15,8 +15,9 @@ using namespace std;
 int nbSubTours = 0;
 int nbArcsLengthened = 0;
 int AverageOrder = 0;
-int nbIters = 0;
+
 int unknownreason = 0;
+
 
 GRBModel tmpModel(*env);
 
@@ -32,10 +33,13 @@ void addaSingleSubTourConstraint(vector<NODE> &cycle)
 {
 
 	try{
-		for (int i = 0; i < cycle.size(); i++)
-			cout << "(" << cycle[i].first << "," << cycle[i].second << ")-";
-		
-		cout << endl;
+
+		if (DEBUG)
+		{
+			for (int i = 0; i < cycle.size(); i++)
+				cout << "(" << cycle[i].first << "," << cycle[i].second << ")-";
+			cout << endl;
+		}
 
 		if (cycle[0].first == cycle[cycle.size() - 1].first && cycle[0].second == cycle[cycle.size() - 1].second)
 		{
@@ -134,10 +138,11 @@ bool liftUntilViolatedNode(vector<NODE> cycle)
 {
 	int firstNonLiftedNodeIndex = firstViolatedNode(cycle);
 	
-	if (firstNonLiftedNodeIndex != -1)
-		cout << "Violation appears at terminal " << cycle[firstNonLiftedNodeIndex].first << " with index " << firstNonLiftedNodeIndex << endl;
-	else
-		cout << "No violated node on this cycle!" << endl;
+	if (DEBUG)
+		if (firstNonLiftedNodeIndex != -1)
+			cout << "Violation appears at terminal " << cycle[firstNonLiftedNodeIndex].first << " with index " << firstNonLiftedNodeIndex << endl;
+		else
+			cout << "No violated node on this cycle!" << endl;
 	
 	if (firstNonLiftedNodeIndex != -1) //co canh vi pham
 	{
@@ -177,15 +182,67 @@ void LiftOnlyFirstCycle(vector< vector <NODE> > cycles)
 	}
 }
 
+void LiftManyCyclesExceptFirstCycle(vector< vector <NODE> > cycles)
+{
+	for (int k = 0; k < cycles.size(); k++)
+	{
+		//cout << "Lifting cycle numbered " << k << endl;
+		bool change = liftUntilViolatedNode(cycles[k]); //do the lift
+		if (change == false && k > 0)
+		{
+			if (cycles[k].size() > 2)
+				UpdateArcsFollowingCycle(cycles[k], cycles[k].size() - 1); //no time-window violation but we perform lift 
+			else
+				addaSingleSubTourConstraint(cycles[k]);
+
+		}
+		//else if (k == 0 && change == false)
+		//	addaSingleSubTourConstraint(cycles[0]); //cycle 0, add subtour constraint
+		//cout << "*************************************" << endl;
+	}
+}
+
+void LiftManyCyclesExceptFirstCycleAndUpdateSubToursLength2(vector< vector <NODE> > cycles)
+{
+	
+	for (int k = 0; k < cycles.size(); k++)
+	{
+		//cout << "Lifting cycle numbered " << k << endl;
+		bool change = liftUntilViolatedNode(cycles[k]); //do the lift
+		//if (change == false && k > 0)
+		//{
+		//	if (cycles[k].size() > 1)
+		//		UpdateArcsFollowingCycle(cycles[k], cycles[k].size() - 1); //no time-window violation but we perform lift if cycle >= 3
+
+		//}
+		if (change == false && k > 0)
+		{
+			if (cycles[k].size() > 2)
+				UpdateArcsFollowingCycle(cycles[k], cycles[k].size() - 1); //no time-window violation but we perform lift if cycle >= 3
+
+		}
+		else if (change == false && k == 0 && MIP)
+			addaSingleSubTourConstraint(cycles[0]);
+	}
+
+	//if (MIP)
+	//	updateSubTourLength2ConstraintsVarName(newArcNames);
+
+	globalChange = globalChange | (newArcNames.size() > 0);
+	cout << "Number of new arcs:" << newArcNames.size() << endl;
+	newArcNames.clear();
+ 
+}
+
 void LiftManyCyclesAndSubtourCycleLength2(vector< vector <NODE> > cycles)
 {
 	for (int k = 0; k < cycles.size(); k++)
 	{
-		cout << "Lifting cycle numbered " << k << endl;
+		//cout << "Lifting cycle numbered " << k << endl;
 		bool change = liftUntilViolatedNode(cycles[k]); //do the lift
 		if (change == false && k > 0)
 		{
-			if (cycles[k].size() > 3)
+			if (cycles[k].size() > 2)
 				UpdateArcsFollowingCycle(cycles[k], cycles[k].size() - 1); //no time-window violation but we perform lift 
 			else
 				addaSingleSubTourConstraint(cycles[k]);
@@ -194,33 +251,263 @@ void LiftManyCyclesAndSubtourCycleLength2(vector< vector <NODE> > cycles)
 			
 		else if (k==0 && change ==false)
 			addaSingleSubTourConstraint(cycles[0]); //cycle 0, add subtour constraint
-		cout << "*************************************" << endl;
+		//cout << "*************************************" << endl;
+	}
+}
+
+void addAllSubTourConstraints(vector< vector <NODE> > cycles)
+{
+	for (int k = 0; k < cycles.size(); k++)
+	{
+		
+		bool change = liftUntilViolatedNode(cycles[k]); //do the lift
+		if (change == false)
+				addaSingleSubTourConstraint(cycles[k]);
+
 	}
 }
 
 void LiftCycleLength2(vector<NODE> cycle)
 {
-	int i = cycle[1].first;
-	int t = cycle[1].second;
-	int j = cycle[2].first;
-	int t_prime = cycle[2].second;
+	int i = cycle[0].first;
+	int t = cycle[0].second;
+	int j = cycle[1].first;
+	int t_prime = cycle[1].second;
 
 	int curTime = t, prevTime = t_prime;
 
 	deletedVarList.insert(VarIndex(i, t, j, t_prime));
 	
-	//for (int k = 0; ;k++)
-	//{
+	set<NODE> saddedNodes;
+	set<VarIndex> saddedVars;
+	set<VarIndex> sdeletedVars;
 
-	//	
-	//	ARC_MODIFICATION(old_arc, new_arc);
-	//	
-	//	//actually adding arcs to the model
-	//	addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
+	for (int k = 0; ;k++)
+	{
 
-	//}
+		
+		//ARC_MODIFICATION(old_arc, new_arc);
+		//
+		////actually adding arcs to the model
+		//addNodeArcToModel(G, PTEG, deletedVarList, addedVarList, addedNodeList);
+
+	}
 
  
+}
+
+void splitStringTerminal(string s, int &i, int &j)
+{
+	i = 0;
+	int k;
+	for (k = 2; s[k] != ','; k++)
+		i = i * 10 + s[k] - '0';
+	k++;
+	for (; s[k] != '('; k++)
+		;
+	k++;
+	j = 0;
+	for (; s[k] != ','; k++)
+		j = j * 10 + s[k] - '0';
+}
+
+void splitStringAll(string s, int &i, int &t, int &j, int &t_prime)
+{
+	int k;
+	i = 0;
+	for (k = 2; s[k] != ','; k++)
+		i = i * 10 + s[k] - '0';
+	t = 0; k++;
+	for (; s[k] != ')'; k++)
+		t =t*10 + s[k]-'0';
+	k += 2;
+
+	j = 0;
+	for (; s[k] != ','; k++)
+		j = j * 10 + s[k] - '0';
+	k++;
+	t_prime = 0;
+	for (; s[k] != ')'; k++)
+		t_prime = t_prime * 10 + s[k] - '0';
+}
+
+void splitStringTime(string s, int &t, int &t_prime)
+{
+	t = 0;
+	int k;
+	for (k = 2; s[k] != ','; k++) ;
+	for (k = 2; s[k] != ')'; k++);
+		t = t * 10 + s[k] - '0';
+	k++;
+	
+	for (; s[k] != ','; k++)	;
+	k++;
+	t_prime = 0;
+	for (; s[k] != ')'; k++)
+		t_prime = t_prime * 10 + s[k] - '0';
+}
+
+
+void addAllSubTourLength2()
+{
+	
+	//Add subtour constraint length 2
+	map < pair<int, int >, GRBLinExpr > mSubToursLength2;
+
+	for (int i = 1; i < G.N0; i++)
+		for (int j = i + 1; j < G.N0; j++)
+			if (G.tau[i][j] + G.tau[j][i] < 1e6)
+				mSubToursLength2[make_pair(i, j)] = GRBLinExpr(0.0);
+
+	GRBVar *var = model.getVars();
+	for (int k = 0; k < model.get(GRB_IntAttr_NumVars); k++)
+	{
+		string name = var[k].get(GRB_StringAttr_VarName);
+		int i, j;
+		
+		splitStringTerminal(name, i, j);
+		
+		if (G.tau[i][j] + G.tau[j][i] > 1e6)
+			continue;
+		
+		int u = min(i, j);
+		int v = max(i, j);
+
+		mSubToursLength2[make_pair(u, v)] += var[k];
+	}
+
+	for (int i = 1; i < G.N0; i++)
+		for (int j = i + 1; j < G.N0; j++)
+		{
+			if (G.tau[i][j] + G.tau[j][i] > 1e6)
+				continue; 
+			ostringstream subTour;
+			subTour << "SubTour_" << i << "." << j;
+			model.addConstr(mSubToursLength2[make_pair(i, j)] <= 1, subTour.str()); //sub tour constraint length 2
+			constraintSet[subTour.str()] = mSubToursLength2[make_pair(i, j)];
+		}
+
+	model.update();
+}
+
+void addAllSubTourLength2Type2()
+{
+
+	
+	//Add subtour constraint length 2
+	map < pair<int, int>, GRBLinExpr > mSubToursLength2;
+
+	GRBVar *var = model.getVars();
+	for (int k = 0; k < model.get(GRB_IntAttr_NumVars); k++)
+	{
+		string name = var[k].get(GRB_StringAttr_VarName);
+		int i, j, t, t_prime;
+
+		splitStringAll(name, i, t, j , t_prime);
+
+		if (i == j || i == 0 || j == 0)
+			continue;
+
+		if (t_prime >= t)  //forward arc
+			mSubToursLength2[make_pair(i,t)] += var[k];
+
+		if (t >= t_prime) //backward arc
+		{
+			mSubToursLength2[make_pair(j, t_prime)] += var[k];
+			//allSubTour.insert(make_pair(j, t_prime));
+		}
+			
+	}
+
+	for (map< pair<int, int>, GRBLinExpr>::iterator it = mSubToursLength2.begin(); it != mSubToursLength2.end(); it++)
+		//if (allSubTour.find(it->first) != allSubTour.end())
+		{
+			ostringstream subTour;
+			subTour << "NoSubTour_" << it->first.first << "." << it->first.second;
+			model.addConstr(it->second <= 1, subTour.str()); //sub tour constraint length 2
+		}
+
+	model.update();
+	cout << "Here" << endl;
+}
+
+void fixedArcs(vector<VarIndex> selectedArcs)
+{
+	int cnt1 = 0;
+	bool able[MAXN][MAXN];
+	memset(able, 0, sizeof(able));
+	for (int k = 0; k < selectedArcs.size(); k++)
+		able[selectedArcs[k].i][selectedArcs[k].j] = 1, cnt1++;
+
+	//model.set(GRB_CharAttr_VType, model.getVars(), GRB_BINARY, model.get(GRB_IntAttr_NumVars));
+
+	int cnt = 0;
+	GRBVar *var = model.getVars();
+	for (int k = 0; k < model.get(GRB_IntAttr_NumVars); k++)
+	{
+		string name = var[k].get(GRB_StringAttr_VarName);
+		int i, j;
+		//cout << name << endl;
+		splitStringTerminal(name, i, j);
+		
+	
+		if (able[i][j] == 0)
+			var[k].set(GRB_DoubleAttr_UB, 0.0);
+		else
+			var[k].set(GRB_CharAttr_VType, GRB_BINARY), cnt++;
+	}
+	cout << endl << cnt1 << " " << cnt << " " << model.get(GRB_IntAttr_NumVars) << endl;
+
+}
+
+void fixeNoBackWardArcs(vector<VarIndex> selectedArcs)
+{
+	int cnt1 = 0;
+
+	int cnt = 0;
+	GRBVar *var = model.getVars();
+	for (int k = 0; k < model.get(GRB_IntAttr_NumVars); k++)
+	{
+		string name = var[k].get(GRB_StringAttr_VarName);
+		int t, t_prime;
+		//cout << name << endl;
+		splitStringTerminal(name, t, t_prime);
+		if (t > t_prime)
+			var[k].set(GRB_DoubleAttr_UB, 0.0), cnt1++;
+		else
+			var[k].set(GRB_CharAttr_VType, GRB_BINARY), cnt++;
+	}
+	cout << endl << cnt1 << " " << cnt << " " << model.get(GRB_IntAttr_NumVars) << endl;
+
+}
+
+void changeAllToBinaryAndAddSubTours()
+{
+	GRBVar *var = model.getVars();
+	for (int k = 0; k < model.get(GRB_IntAttr_NumVars); k++)
+		var[k].set(GRB_CharAttr_VType, GRB_BINARY);
+
+	cout << model.get(GRB_IntAttr_NumVars) << endl;
+
+	//fixeNoBackWardArcs(selectedArcs);
+	addAllSubTourLength2Type2();
+	model.update();
+
+}
+
+void changeSomeToBinaryAndAddSubTours()
+{
+	GRBVar *var = model.getVars();
+	for (int k = 0; k < model.get(GRB_IntAttr_NumVars); k++)
+		if (var[k].get(GRB_DoubleAttr_X) > 0.0 && var[k].get(GRB_DoubleAttr_X) < 1.0)
+			var[k].set(GRB_CharAttr_VType, GRB_BINARY);
+
+	cout << model.get(GRB_IntAttr_NumVars) << endl;
+
+	//fixeNoBackWardArcs(selectedArcs);
+	//addAllSubTourLength2Type2();
+	model.update();
+
 }
 
 void Test2()
@@ -266,7 +553,10 @@ void Test2()
 
 			//set of selected arcs
 			vector<VarIndex> selectedArcs;
+			vector<varInfo> selectedVars;
+
 			selectedArcs.clear();
+			arcValues.clear();
 
 			//model.write("model.lp");
 
@@ -277,17 +567,43 @@ void Test2()
 				GRBVar arc_var = var_it->second;
 				
 				//cout << "Extract variable :" << idx << endl;
-
-				if (arc_var.get(GRB_DoubleAttr_X) > 0.5)
+				
+				if (arc_var.get(GRB_DoubleAttr_X) > 0.01)
+				{
 					selectedArcs.push_back(idx);
+					arcValues.push_back(arc_var.get(GRB_DoubleAttr_X));
+					//selectedVars.push_back((varInfo){arc_var.get(GRB_DoubleAttr_X), idx, selectedArcs.size()-1 });
+				}
 			}
 
 			////display selected arcs
 			//cout << "Selected Arcs" << endl;
 			//for (int k = 0; k < selectedArcs.size(); k++)
-			//	cout << "(" << selectedArcs[k].i << "," << selectedArcs[k].t << ")-(" << selectedArcs[k].j << "," << selectedArcs[k].t_prime << ")" << endl;
+			//	cout << "(" << selectedArcs[k].i << "," << selectedArcs[k].t << ")-(" << selectedArcs[k].j << "," << selectedArcs[k].t_prime << ")" << " : " << arcValues[k] << endl;
 
-			bool validSolution = buildCycles(selectedArcs, cycles);
+			////display selected arcs
+			//if (MIP)
+			//{
+			//	cout << "Selected Arcs" << endl;
+			//	for (int k = 0; k < selectedArcs.size(); k++)
+			//		cout << k<<":(" << selectedArcs[k].i << "," << selectedArcs[k].t << ")-(" << selectedArcs[k].j << "," << selectedArcs[k].t_prime << ") : " << arcValues[k] << endl;;
+			//	cout << endl;
+
+			//}
+
+			//bool validSolution = buildCycles2(selectedArcs, cycles);
+			
+			//bool validSolution = buildCyclesRelaxation(selectedVars, selectedArcs, cycles);
+			//exit(0);
+
+
+			bool validSolution;
+			if (MIP == false)
+				validSolution = buildCyclesRelaxation(selectedArcs, cycles);
+			else 
+				validSolution = buildCycles(selectedArcs, cycles);
+			 
+			 
 
 			if (validSolution == false)
 			{
@@ -303,10 +619,12 @@ void Test2()
 			//model.write("correct.lp");
 
 			earliestFirst(cycles);
+			
 			cout << "Number of cycles: " << cycles.size() << endl;
 			//list of cycles
-			cout << "List of cycles after moving the earliest node to the first position" << endl;
-			displayCycles(cycles);
+			//cout << "List of cycles after moving the earliest node to the first position" << endl;
+			if (MIP == true)
+				displayCycles(cycles);
 
 			//if (Obj < lastObj)
 			//{
@@ -316,6 +634,8 @@ void Test2()
 			//
 			//model.write("xxx.lp");
 
+			globalChange = false;
+
 			if (cycles.size()>1) //we have more than we sub-tours
 			{
 
@@ -323,8 +643,15 @@ void Test2()
 
 				//LiftOnlyFirstCycle(cycles);
 				
-				LiftManyCyclesAndSubtourCycleLength2(cycles);
-	
+				//LiftManyCyclesAndSubtourCycleLength2(cycles);
+
+				//LiftManyCyclesExceptFirstCycle(cycles);
+				LiftManyCyclesExceptFirstCycleAndUpdateSubToursLength2(cycles);
+
+				//if (MIP == false)
+				//	LiftManyCyclesExceptFirstCycleAndUpdateSubToursLength2(cycles);
+				//else
+				//	addAllSubTourConstraints(cycles);
 			}
 			else //checking time windows constraints
 			{
@@ -333,7 +660,18 @@ void Test2()
 				vector<NODE> cycle = cycles[0];
 
 				if (violatedTerminal != -1) //violation of time window at a terminal
-					int nbArcTooShort = UpdateArcsFollowingCycle(cycle, violatedTerminal);
+				{
+					UpdateArcsFollowingCycle(cycle, violatedTerminal);
+					
+					//if (MIP)
+					//	updateSubTourLength2ConstraintsVarName(newArcNames);
+					
+					globalChange = globalChange | (newArcNames.size() > 0);
+
+					cout << " Number of new arcs: " << newArcNames.size() << endl;
+					newArcNames.clear();
+ 				}
+					
 
 				else
 				{
@@ -351,6 +689,27 @@ void Test2()
 					
 			}
 			 
+			if (globalChange == false)
+			{
+				if (changeVarType == false)
+				{
+					
+
+					//REMEMBER TO MODIFY ADDNODEARCTOMODEL
+
+					//addAllSubTourLength2();
+					changeSomeToBinaryAndAddSubTours();
+
+					MIP = changeVarType = true;
+					MIP = changeVarType = false, globalChange = true;
+
+					//model.write("final.lp");
+					//exit(0);
+				}
+			 
+			}
+				
+
 			deletedVarList.clear();
 			addedNodeList.clear();
 			addedVarList.clear();
@@ -388,7 +747,7 @@ void Test2()
 		//else cout << endl;
 	} 
 
-	unknownreason = 1;
+	//unknownreason = 1;
 
 }
 
@@ -403,17 +762,22 @@ int main(int   argc,
 	//readOriginalGraph(G, argv[1]);
 	//readOriginalGraph_rfsilva(G, argv[1]);
 	readOriginalGraph_Ascheuer(G, argv[1]);
-	testReadingGraph(G);
+	//testReadingGraph(G);
 	
-	//return 0;
+	
+	preprocessingPrecedenceConstraints(G);
 
+	//for (int i = 0; i < G.N0; i++)
+	//	cout << i+1<<":"<<G.e[i] << " " << G.l[i] << endl;
+
+	
 	cout << "Starting the solution procedure!" << endl;
 	//testReadingGraph(G);
 
 	//CreateInitialParitalGraph(G, PTEG);
 	CreateInitialParitalGraphWithOutZero(G, PTEG);
 
-	//
+	 
 	InitialModelGeneration(G, PTEG);
 
 	
@@ -424,7 +788,8 @@ int main(int   argc,
 	model.getEnv().set(GRB_IntParam_Threads, 1);
 	int start_s = clock();
 
-	freopen(argv[2], "wt", stdout);
+
+	//freopen(argv[2], "wt", stdout);
 
  	Test2();
 	
@@ -435,6 +800,7 @@ int main(int   argc,
 		model.write(lpmodel);
 
 	}
+	//model.write("final.lp");
 
 	return 0;
 }
